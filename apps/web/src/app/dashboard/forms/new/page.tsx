@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Loader2 } from 'lucide-react'
@@ -9,6 +9,8 @@ import { toast } from 'sonner'
 export default function NewFormPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
+  const [loadingWorkspace, setLoadingWorkspace] = useState(true)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -17,8 +19,65 @@ export default function NewFormPage() {
     successMessage: 'Thank you for your submission!'
   })
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
+  // Fetch user's workspace on mount
+  useEffect(() => {
+    const fetchWorkspace = async () => {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        router.push('/login')
+        return
+      }
+
+      try {
+        const res = await fetch(`${apiUrl}/v1/workspaces`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        const data = await res.json()
+
+        if (data.success && data.data && data.data.length > 0) {
+          setWorkspaceId(data.data[0].id)
+        } else {
+          // No workspace found - create one
+          const createRes = await fetch(`${apiUrl}/v1/workspaces`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: 'My Workspace',
+              slug: `workspace-${Date.now()}`
+            })
+          })
+          const createData = await createRes.json()
+          
+          if (createData.success) {
+            setWorkspaceId(createData.data.id)
+          } else {
+            toast.error('Failed to create workspace')
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch workspace:', err)
+        toast.error('Failed to load workspace')
+      } finally {
+        setLoadingWorkspace(false)
+      }
+    }
+
+    fetchWorkspace()
+  }, [apiUrl, router])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!workspaceId) {
+      toast.error('No workspace found. Please refresh and try again.')
+      return
+    }
+
     setIsLoading(true)
 
     const token = localStorage.getItem('token')
@@ -28,20 +87,21 @@ export default function NewFormPage() {
     }
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/v1/forms`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            ...formData,
-            emailTo: formData.emailTo ? formData.emailTo.split(',').map(e => e.trim()) : []
-          })
-        }
-      )
+      const res = await fetch(`${apiUrl}/v1/forms`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          workspaceId, // <-- THIS WAS MISSING!
+          name: formData.name,
+          description: formData.description || undefined,
+          emailTo: formData.emailTo ? formData.emailTo.split(',').map(e => e.trim()) : [],
+          redirectUrl: formData.redirectUrl || undefined,
+          successMessage: formData.successMessage || 'Thank you for your submission!'
+        })
+      })
 
       const data = await res.json()
 
@@ -56,6 +116,14 @@ export default function NewFormPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (loadingWorkspace) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
@@ -159,21 +227,21 @@ export default function NewFormPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <button
-            type="submit"
-            disabled={isLoading || !formData.name}
-            className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
-            {isLoading ? 'Creating...' : 'Create Form'}
-          </button>
+        <div className="flex justify-end gap-4">
           <Link
             href="/dashboard/forms"
-            className="px-6 py-3 rounded-lg border hover:bg-muted transition-colors"
+            className="px-6 py-3 border rounded-lg hover:bg-muted transition-colors"
           >
             Cancel
           </Link>
+          <button
+            type="submit"
+            disabled={isLoading || !formData.name}
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+            Create Form
+          </button>
         </div>
       </form>
     </div>

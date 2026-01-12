@@ -10,23 +10,27 @@ import {
   Save, 
   MoreVertical,
   Download,
-  Upload,
   Share2,
   ExternalLink,
   Loader2,
   Check,
   Layers,
-  FileJson
+  FileJson,
+  QrCode,
+  Link as LinkIcon,
+  Code
 } from 'lucide-react'
 import { useBuilder } from './builder-context'
 import { ImportModal } from './import-modal'
+import { ShareFormModal } from '@/components/embed/share-form-modal'
 
 interface BuilderToolbarProps {
   formId?: string
+  formName?: string
   onSave?: () => Promise<void>
 }
 
-export function BuilderToolbar({ formId, onSave }: BuilderToolbarProps) {
+export function BuilderToolbar({ formId, formName, onSave }: BuilderToolbarProps) {
   const { 
     state, 
     undo, 
@@ -41,6 +45,7 @@ export function BuilderToolbar({ formId, onSave }: BuilderToolbarProps) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [showShare, setShowShare] = useState(false)
 
   const handleSave = async () => {
     if (!onSave) return
@@ -63,13 +68,6 @@ export function BuilderToolbar({ formId, onSave }: BuilderToolbarProps) {
     a.download = `${state.schema.name.toLowerCase().replace(/\s+/g, '-')}.json`
     a.click()
     URL.revokeObjectURL(url)
-    setShowMenu(false)
-  }
-
-  const handleCopyEmbed = () => {
-    const embedCode = `<script src="https://cdn.inputhaven.com/embed.js"></script>
-<div data-inputhaven-form="${formId || 'YOUR_FORM_ID'}"></div>`
-    navigator.clipboard.writeText(embedCode)
     setShowMenu(false)
   }
 
@@ -143,6 +141,18 @@ export function BuilderToolbar({ formId, onSave }: BuilderToolbarProps) {
 
         {/* Right */}
         <div className="flex items-center gap-2">
+          {/* Share Button - NEW */}
+          {formId && (
+            <button
+              onClick={() => setShowShare(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 text-gray-600"
+              title="Share form"
+            >
+              <Share2 className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm">Share</span>
+            </button>
+          )}
+
           {/* Preview Toggle */}
           <button
             onClick={() => setPreviewMode(!state.previewMode)}
@@ -168,39 +178,56 @@ export function BuilderToolbar({ formId, onSave }: BuilderToolbarProps) {
             {showMenu && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border z-20 py-1">
+                <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-lg shadow-lg border z-20 py-1">
                   <button
                     onClick={() => { toggleImportModal(true); setShowMenu(false); }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                   >
                     <FileJson className="w-4 h-4" />
-                    Import / Export
+                    Import / Export JSON
                   </button>
                   <button
                     onClick={handleExportJSON}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                   >
                     <Download className="w-4 h-4" />
-                    Download JSON
-                  </button>
-                  <button
-                    onClick={handleCopyEmbed}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    Copy Embed Code
+                    Download Schema
                   </button>
                   <div className="border-t my-1" />
                   {formId && (
-                    <a
-                      href={`/f/${formId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Open Form
-                    </a>
+                    <>
+                      <button
+                        onClick={() => { setShowShare(true); setShowMenu(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <LinkIcon className="w-4 h-4" />
+                        Get Share Link
+                      </button>
+                      <button
+                        onClick={() => { setShowShare(true); setShowMenu(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <Code className="w-4 h-4" />
+                        Get Embed Code
+                      </button>
+                      <button
+                        onClick={() => { setShowShare(true); setShowMenu(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <QrCode className="w-4 h-4" />
+                        Generate QR Code
+                      </button>
+                      <div className="border-t my-1" />
+                      <a
+                        href={`/f/${formId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Open Live Form
+                      </a>
+                    </>
                   )}
                 </div>
               </>
@@ -228,6 +255,15 @@ export function BuilderToolbar({ formId, onSave }: BuilderToolbarProps) {
       {/* Import Modal */}
       {state.showImportModal && (
         <ImportModal onClose={() => toggleImportModal(false)} />
+      )}
+
+      {/* Share Modal - NEW */}
+      {showShare && formId && (
+        <ShareFormModal
+          formId={formId}
+          formName={formName || state.schema.name}
+          onClose={() => setShowShare(false)}
+        />
       )}
     </>
   )
