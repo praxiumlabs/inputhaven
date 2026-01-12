@@ -1,0 +1,487 @@
+// Prisma Schema for InputHaven v2
+// Modern Form Backend Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== AUTH & USERS ====================
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  emailVerified       DateTime?
+  passwordHash        String?
+  name                String
+  avatar              String?
+  
+  // OAuth
+  googleId            String?   @unique
+  githubId            String?   @unique
+  
+  // Plan & Billing
+  plan                Plan      @default(FREE)
+  planExpiresAt       DateTime?
+  stripeCustomerId    String?   @unique
+  stripeSubscriptionId String?
+  
+  // Usage tracking
+  submissionsThisMonth Int      @default(0)
+  submissionsTotal    Int       @default(0)
+  storageUsedBytes    BigInt    @default(0)
+  
+  // Security
+  twoFactorEnabled    Boolean   @default(false)
+  twoFactorSecret     String?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  lastLoginIp         String?
+  passwordChangedAt   DateTime?
+  
+  // Status
+  isActive            Boolean   @default(true)
+  isAdmin             Boolean   @default(false)
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  workspaces          WorkspaceMember[]
+  ownedWorkspaces     Workspace[]       @relation("WorkspaceOwner")
+  sessions            Session[]
+  apiKeys             ApiKey[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  
+  @@index([email])
+  @@index([stripeCustomerId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  
+  @@index([userId])
+  @@index([token])
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+// ==================== WORKSPACES (TEAMS) ====================
+
+model Workspace {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  logo         String?
+  
+  // Owner
+  ownerId      String
+  owner        User     @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  
+  // Settings
+  customDomain String?  @unique
+  brandColor   String   @default("#6366f1")
+  
+  // Timestamps
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  members      WorkspaceMember[]
+  forms        Form[]
+  apiKeys      ApiKey[]
+  integrations Integration[]
+  
+  @@index([slug])
+  @@index([ownerId])
+}
+
+model WorkspaceMember {
+  id          String        @id @default(cuid())
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        WorkspaceRole @default(MEMBER)
+  invitedAt   DateTime      @default(now())
+  joinedAt    DateTime?
+  
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+// ==================== FORMS ====================
+
+model Form {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  // Basic Info
+  name            String
+  description     String?
+  accessKey       String   @unique @default(cuid())
+  
+  // Configuration
+  schema          Json?    // Form field schema for builder
+  settings        Json     @default("{}")  // All form settings
+  styling         Json     @default("{}")  // Custom styling/theme
+  
+  // Endpoints
+  emailTo         String[]
+  redirectUrl     String?
+  webhookUrl      String?
+  successMessage  String?
+  
+  // Security
+  allowedDomains  String[] @default([])
+  honeypotField   String   @default("_gotcha")
+  recaptchaEnabled Boolean @default(false)
+  recaptchaSecret String?
+  requireAuth     Boolean  @default(false)
+  
+  // AI Features
+  spamThreshold   Float    @default(0.7)
+  autoTagEnabled  Boolean  @default(false)
+  sentimentEnabled Boolean @default(false)
+  
+  // Analytics
+  submissionCount Int      @default(0)
+  viewCount       Int      @default(0)
+  conversionRate  Float    @default(0)
+  
+  // Status
+  isActive        Boolean  @default(true)
+  isArchived      Boolean  @default(false)
+  lastSubmissionAt DateTime?
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  submissions     Submission[]
+  webhookLogs     WebhookLog[]
+  formViews       FormView[]
+  autoResponders  AutoResponder[]
+  
+  @@index([workspaceId])
+  @@index([accessKey])
+  @@index([isActive])
+}
+
+model FormView {
+  id        String   @id @default(cuid())
+  formId    String
+  form      Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  
+  // Visitor info
+  sessionId String
+  ipAddress String?
+  country   String?
+  city      String?
+  device    String?
+  browser   String?
+  referrer  String?
+  
+  // Funnel tracking
+  startedAt DateTime @default(now())
+  completedAt DateTime?
+  droppedAt String?  // Field name where they dropped
+  
+  @@index([formId])
+  @@index([sessionId])
+  @@index([startedAt])
+}
+
+// ==================== SUBMISSIONS ====================
+
+model Submission {
+  id           String   @id @default(cuid())
+  formId       String
+  form         Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  
+  // Submission data
+  data         Json     // The actual form data
+  metadata     Json     @default("{}")  // IP, user agent, etc.
+  
+  // AI Processing
+  spamScore    Float?
+  sentiment    String?  // positive, negative, neutral
+  tags         String[] @default([])
+  summary      String?  // AI-generated summary
+  
+  // Status
+  isSpam       Boolean  @default(false)
+  isRead       Boolean  @default(false)
+  isStarred    Boolean  @default(false)
+  isArchived   Boolean  @default(false)
+  
+  // Assignment
+  assignedTo   String?
+  status       SubmissionStatus @default(NEW)
+  
+  // Timestamps
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  files        FileUpload[]
+  notes        SubmissionNote[]
+  activities   SubmissionActivity[]
+  
+  @@index([formId])
+  @@index([isSpam])
+  @@index([isRead])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum SubmissionStatus {
+  NEW
+  IN_PROGRESS
+  WAITING
+  RESOLVED
+  SPAM
+}
+
+model SubmissionNote {
+  id           String   @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  userId       String
+  content      String
+  isInternal   Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  
+  @@index([submissionId])
+}
+
+model SubmissionActivity {
+  id           String   @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  action       String   // status_changed, assigned, replied, etc.
+  details      Json?
+  userId       String?
+  createdAt    DateTime @default(now())
+  
+  @@index([submissionId])
+}
+
+// ==================== FILES ====================
+
+model FileUpload {
+  id           String   @id @default(cuid())
+  submissionId String?
+  submission   Submission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  
+  // File info
+  originalName String
+  storedName   String
+  mimeType     String
+  size         BigInt
+  url          String
+  
+  // Security
+  scanStatus   String   @default("pending") // pending, clean, infected
+  scanResult   Json?
+  
+  // Timestamps
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime?
+  
+  @@index([submissionId])
+}
+
+// ==================== WEBHOOKS & INTEGRATIONS ====================
+
+model WebhookLog {
+  id           String   @id @default(cuid())
+  formId       String
+  form         Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  
+  url          String
+  method       String   @default("POST")
+  requestBody  Json?
+  responseCode Int?
+  responseBody String?
+  duration     Int?     // ms
+  success      Boolean  @default(false)
+  error        String?
+  attempts     Int      @default(1)
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([formId])
+  @@index([createdAt])
+}
+
+model Integration {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  type         String   // slack, discord, notion, sheets, zapier, etc.
+  name         String
+  config       Json     // Encrypted config/credentials
+  isActive     Boolean  @default(true)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([workspaceId])
+  @@index([type])
+}
+
+model AutoResponder {
+  id           String   @id @default(cuid())
+  formId       String
+  form         Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  
+  name         String
+  subject      String
+  body         String   // Supports variables like {{name}}, {{email}}
+  delay        Int      @default(0) // Minutes to wait before sending
+  
+  // Conditions
+  conditions   Json?    // When to trigger
+  isActive     Boolean  @default(true)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([formId])
+}
+
+// ==================== API KEYS ====================
+
+model ApiKey {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId  String?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  name         String
+  keyHash      String   @unique // Hashed API key
+  keyPreview   String   // First/last few chars for display
+  
+  // Permissions
+  scopes       String[] @default(["read", "write"])
+  
+  // Usage
+  lastUsedAt   DateTime?
+  usageCount   BigInt   @default(0)
+  
+  // Limits
+  rateLimit    Int      @default(1000) // Per hour
+  expiresAt    DateTime?
+  
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  
+  @@index([userId])
+  @@index([keyHash])
+}
+
+// ==================== RATE LIMITING ====================
+
+model RateLimit {
+  id           String   @id @default(cuid())
+  key          String   @unique // ip:endpoint or user:endpoint
+  count        Int      @default(0)
+  windowStart  DateTime @default(now())
+  expiresAt    DateTime
+  
+  @@index([key])
+  @@index([expiresAt])
+}
+
+// ==================== AUDIT & NOTIFICATIONS ====================
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  action       String
+  resource     String   // form, submission, user, etc.
+  resourceId   String?
+  details      Json?
+  ipAddress    String?
+  userAgent    String?
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+}
+
+model Notification {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type         String   // submission, billing, security, etc.
+  title        String
+  body         String
+  link         String?
+  isRead       Boolean  @default(false)
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// ==================== EMAIL QUEUE ====================
+
+model EmailQueue {
+  id           String   @id @default(cuid())
+  to           String
+  subject      String
+  body         String
+  replyTo      String?
+  
+  status       String   @default("pending") // pending, sent, failed
+  attempts     Int      @default(0)
+  lastError    String?
+  sentAt       DateTime?
+  
+  scheduledFor DateTime @default(now())
+  createdAt    DateTime @default(now())
+  
+  @@index([status])
+  @@index([scheduledFor])
+}
