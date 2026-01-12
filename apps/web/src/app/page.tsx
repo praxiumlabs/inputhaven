@@ -1,142 +1,155 @@
 import Link from 'next/link'
-import { ArrowRight, Check, Zap, Shield, Globe, Code, BarChart3, Webhook, Mail, Sparkles } from 'lucide-react'
+import { ArrowRight, Check, Zap, Shield, Bell, Code, BarChart3, Users } from 'lucide-react'
 
-export default function HomePage() {
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-xl">
-              📥
+    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+      {/* Header */}
+      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">IH</span>
             </div>
-            <span className="text-xl font-bold text-gray-900">InputHaven</span>
-          </Link>
-          
-          <div className="hidden md:flex items-center gap-8">
-            <Link href="#features" className="text-sm font-medium text-gray-600 hover:text-gray-900">Features</Link>
-            <Link href="#pricing" className="text-sm font-medium text-gray-600 hover:text-gray-900">Pricing</Link>
-            <Link href="/docs" className="text-sm font-medium text-gray-600 hover:text-gray-900">Docs</Link>
+            <span className="font-bold text-xl">InputHaven</span>
           </div>
-
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900">
+          
+          <nav className="hidden md:flex items-center gap-6">
+            <Link href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
+              Features
+            </Link>
+            <Link href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">
+              Pricing
+            </Link>
+            <Link href="/docs" className="text-muted-foreground hover:text-foreground transition-colors">
+              Docs
+            </Link>
+          </nav>
+          
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/login" 
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
               Log in
             </Link>
             <Link 
               href="/register" 
-              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
             >
-              Get Started Free
+              Get Started
             </Link>
           </div>
         </div>
-      </nav>
+      </header>
 
       {/* Hero */}
-      <section className="pt-32 pb-20 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-8">
-              <Sparkles className="w-4 h-4" />
-              <span>Now with AI-powered spam detection</span>
-            </div>
-            
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-gray-900 mb-6">
-              Form backend for the
-              <span className="gradient-text"> modern web</span>
-            </h1>
-            
-            <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
-              Add powerful forms to any website in minutes. No backend code required. 
-              Real-time notifications, AI spam protection, and seamless integrations.
-            </p>
-
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-              <Link
-                href="/register"
-                className="w-full sm:w-auto px-8 py-4 rounded-xl bg-primary text-white font-semibold text-lg hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25 flex items-center justify-center gap-2"
-              >
-                Start for free <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link
-                href="#demo"
-                className="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold text-lg hover:border-gray-300 hover:bg-gray-50 transition-colors"
-              >
-                See it in action
-              </Link>
-            </div>
-
-            {/* Code Preview */}
-            <div className="max-w-2xl mx-auto rounded-2xl overflow-hidden shadow-2xl shadow-gray-900/10">
-              <div className="bg-gray-900 px-4 py-3 flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500" />
-                <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                <div className="w-3 h-3 rounded-full bg-green-500" />
-                <span className="ml-4 text-gray-400 text-sm">index.html</span>
-              </div>
-              <pre className="bg-gray-950 p-6 text-left overflow-x-auto">
-                <code className="text-sm leading-relaxed">
-                  <span className="text-gray-500">&lt;!-- Just add this to your HTML --&gt;</span>{'\n'}
-                  <span className="text-pink-400">&lt;form</span> <span className="text-purple-300">action</span>=<span className="text-green-300">"https://inputhaven.com/v1/submit"</span>{'\n'}
-                  {'      '}<span className="text-purple-300">method</span>=<span className="text-green-300">"POST"</span><span className="text-pink-400">&gt;</span>{'\n'}
-                  {'  '}<span className="text-pink-400">&lt;input</span> <span className="text-purple-300">type</span>=<span className="text-green-300">"hidden"</span> <span className="text-purple-300">name</span>=<span className="text-green-300">"access_key"</span>{'\n'}
-                  {'         '}<span className="text-purple-300">value</span>=<span className="text-green-300">"your-form-key"</span> <span className="text-pink-400">/&gt;</span>{'\n'}
-                  {'\n'}
-                  {'  '}<span className="text-pink-400">&lt;input</span> <span className="text-purple-300">type</span>=<span className="text-green-300">"email"</span> <span className="text-purple-300">name</span>=<span className="text-green-300">"email"</span> <span className="text-purple-300">required</span> <span className="text-pink-400">/&gt;</span>{'\n'}
-                  {'  '}<span className="text-pink-400">&lt;textarea</span> <span className="text-purple-300">name</span>=<span className="text-green-300">"message"</span><span className="text-pink-400">&gt;&lt;/textarea&gt;</span>{'\n'}
-                  {'  '}<span className="text-pink-400">&lt;button&gt;</span><span className="text-gray-300">Send</span><span className="text-pink-400">&lt;/button&gt;</span>{'\n'}
-                  <span className="text-pink-400">&lt;/form&gt;</span>
-                </code>
+      <section className="py-20 md:py-32">
+        <div className="container mx-auto px-4 text-center">
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm mb-6">
+            <Zap className="w-4 h-4" />
+            Now with AI-powered spam detection
+          </div>
+          
+          <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+            The simplest way to add<br />
+            <span className="gradient-text">forms to any website</span>
+          </h1>
+          
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            No backend required. Just point your form to our endpoint and start receiving 
+            submissions with email notifications, spam protection, and powerful integrations.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link 
+              href="/register"
+              className="bg-primary text-primary-foreground px-8 py-4 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 text-lg font-medium"
+            >
+              Start for Free
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link
+              href="/docs"
+              className="border px-8 py-4 rounded-lg hover:bg-muted transition-colors text-lg font-medium"
+            >
+              View Documentation
+            </Link>
+          </div>
+          
+          {/* Code example */}
+          <div className="mt-16 max-w-2xl mx-auto">
+            <div className="bg-gray-900 rounded-xl p-6 text-left overflow-x-auto">
+              <pre className="text-sm text-gray-300">
+                <code>{`<form action="https://api.inputhaven.com/v1/submit" method="POST">
+  <input type="hidden" name="access_key" value="your-form-key">
+  
+  <input type="text" name="name" placeholder="Name" required>
+  <input type="email" name="email" placeholder="Email" required>
+  <textarea name="message" placeholder="Message" required></textarea>
+  
+  <button type="submit">Send Message</button>
+</form>`}</code>
               </pre>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="py-16 border-y bg-gray-50/50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { value: '50M+', label: 'Forms processed' },
-              { value: '99.9%', label: 'Uptime SLA' },
-              { value: '<100ms', label: 'Avg response' },
-              { value: '10K+', label: 'Happy developers' }
-            ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="text-4xl font-bold text-gray-900 mb-2">{stat.value}</div>
-                <div className="text-gray-500">{stat.label}</div>
-              </div>
-            ))}
+            <p className="text-sm text-muted-foreground mt-3">
+              That&apos;s it! No JavaScript required. Works with any website.
+            </p>
           </div>
         </div>
       </section>
 
       {/* Features */}
-      <section id="features" className="py-24 px-6">
-        <div className="max-w-7xl mx-auto">
+      <section id="features" className="py-20 bg-white">
+        <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Everything you need</h2>
-            <p className="text-xl text-gray-600">Powerful features to handle all your form needs</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Everything you need for form management
+            </h2>
+            <p className="text-xl text-muted-foreground">
+              Powerful features to help you collect, manage, and act on form submissions
+            </p>
           </div>
-
+          
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
-              { icon: Zap, title: 'Instant Notifications', description: 'Get submissions in your inbox within milliseconds. Beautiful HTML emails with all the data.' },
-              { icon: Shield, title: 'AI Spam Protection', description: 'Advanced machine learning blocks spam while letting real submissions through.' },
-              { icon: Webhook, title: 'Webhooks & Integrations', description: 'Send data to Slack, Discord, Notion, Zapier, or any URL automatically.' },
-              { icon: BarChart3, title: 'Real-time Analytics', description: 'Track submissions, conversion rates, and trends with beautiful dashboards.' },
-              { icon: Code, title: 'Developer Friendly', description: 'REST API, SDKs, and extensive documentation. Build anything you can imagine.' },
-              { icon: Globe, title: 'Global CDN', description: 'Lightning-fast form submissions from anywhere in the world.' }
-            ].map((feature) => (
-              <div key={feature.title} className="p-8 rounded-2xl border bg-white card-hover">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
+              {
+                icon: Shield,
+                title: 'AI Spam Protection',
+                description: 'Advanced AI analyzes every submission to filter out spam and bots automatically.'
+              },
+              {
+                icon: Bell,
+                title: 'Instant Notifications',
+                description: 'Get notified via email, Slack, Discord, or webhooks when new submissions arrive.'
+              },
+              {
+                icon: Code,
+                title: 'Easy Integration',
+                description: 'Works with any website. Just change your form action URL - no JavaScript needed.'
+              },
+              {
+                icon: BarChart3,
+                title: 'Analytics & Insights',
+                description: 'Track submission trends, conversion rates, and geographic data.'
+              },
+              {
+                icon: Users,
+                title: 'Team Collaboration',
+                description: 'Invite team members, assign submissions, and add internal notes.'
+              },
+              {
+                icon: Zap,
+                title: 'Powerful Integrations',
+                description: 'Connect with Zapier, Make, Google Sheets, Notion, and more.'
+              }
+            ].map((feature, i) => (
+              <div key={i} className="p-6 rounded-xl border card-hover">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                   <feature.icon className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
+                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                <p className="text-muted-foreground">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -144,53 +157,95 @@ export default function HomePage() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="py-24 px-6 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
+      <section id="pricing" className="py-20">
+        <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Simple, transparent pricing</h2>
-            <p className="text-xl text-gray-600">Start free, upgrade when you need more</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Simple, transparent pricing
+            </h2>
+            <p className="text-xl text-muted-foreground">
+              Start free, upgrade as you grow
+            </p>
           </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+          
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
-              { name: 'Free', price: '$0', submissions: '250/mo', forms: '1 form', features: ['Email notifications', 'Spam protection', 'Custom redirect'] },
-              { name: 'Starter', price: '$9', submissions: '2,500/mo', forms: '10 forms', features: ['Everything in Free', 'File uploads', 'Webhooks', 'API access'] },
-              { name: 'Pro', price: '$29', submissions: '25,000/mo', forms: 'Unlimited', features: ['Everything in Starter', 'AI features', 'Remove branding', 'Priority support'], popular: true },
-              { name: 'Enterprise', price: '$99', submissions: 'Unlimited', forms: 'Unlimited', features: ['Everything in Pro', '99.9% SLA', 'SSO & Teams', 'Custom integrations'] }
-            ].map((plan) => (
+              {
+                name: 'Free',
+                price: '$0',
+                description: 'Perfect for side projects',
+                features: [
+                  '250 submissions/month',
+                  '1 form',
+                  'Email notifications',
+                  'Basic spam protection',
+                  'Community support'
+                ]
+              },
+              {
+                name: 'Pro',
+                price: '$19',
+                description: 'For growing businesses',
+                popular: true,
+                features: [
+                  '25,000 submissions/month',
+                  'Unlimited forms',
+                  'AI spam protection',
+                  'Team collaboration',
+                  'Webhooks & integrations',
+                  'Priority support'
+                ]
+              },
+              {
+                name: 'Enterprise',
+                price: 'Custom',
+                description: 'For large organizations',
+                features: [
+                  'Unlimited submissions',
+                  'Unlimited forms',
+                  'Custom domain',
+                  'SLA guarantee',
+                  'Dedicated support',
+                  'Custom integrations'
+                ]
+              }
+            ].map((plan, i) => (
               <div 
-                key={plan.name} 
-                className={`p-8 rounded-2xl border bg-white ${plan.popular ? 'border-primary shadow-xl shadow-primary/10 scale-105' : ''}`}
+                key={i} 
+                className={`p-8 rounded-xl border ${
+                  plan.popular 
+                    ? 'border-primary bg-primary/5 relative' 
+                    : 'bg-white'
+                }`}
               >
                 {plan.popular && (
-                  <div className="text-xs font-bold text-primary uppercase tracking-wide mb-4">Most Popular</div>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-sm px-3 py-1 rounded-full">
+                    Most Popular
+                  </div>
                 )}
-                <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
-                <div className="mt-4 mb-6">
-                  <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                  <span className="text-gray-500">/month</span>
+                <h3 className="text-xl font-semibold mb-2">{plan.name}</h3>
+                <div className="mb-4">
+                  <span className="text-4xl font-bold">{plan.price}</span>
+                  {plan.price !== 'Custom' && <span className="text-muted-foreground">/month</span>}
                 </div>
-                <div className="text-sm text-gray-500 mb-6">
-                  <div>{plan.submissions}</div>
-                  <div>{plan.forms}</div>
-                </div>
+                <p className="text-muted-foreground mb-6">{plan.description}</p>
                 <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-3 text-sm text-gray-600">
-                      <Check className="w-5 h-5 text-green-500" />
-                      {feature}
+                  {plan.features.map((feature, j) => (
+                    <li key={j} className="flex items-center gap-2">
+                      <Check className="w-5 h-5 text-secondary" />
+                      <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
                 <Link
                   href="/register"
-                  className={`block w-full py-3 rounded-lg font-semibold text-center transition-colors ${
-                    plan.popular 
-                      ? 'bg-primary text-white hover:bg-primary/90' 
-                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                  className={`block text-center py-3 rounded-lg transition-colors ${
+                    plan.popular
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'border hover:bg-muted'
                   }`}
                 >
-                  Get started
+                  Get Started
                 </Link>
               </div>
             ))}
@@ -199,42 +254,50 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold text-gray-900 mb-6">
+      <section className="py-20 bg-gradient-to-r from-primary to-secondary">
+        <div className="container mx-auto px-4 text-center text-white">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
             Ready to simplify your forms?
           </h2>
-          <p className="text-xl text-gray-600 mb-10">
-            Join thousands of developers who trust InputHaven. Free forever plan available.
+          <p className="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
+            Join thousands of developers who trust InputHaven for their form backend needs.
           </p>
           <Link
             href="/register"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-primary text-white font-semibold text-lg hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25"
+            className="inline-flex items-center gap-2 bg-white text-primary px-8 py-4 rounded-lg hover:bg-gray-100 transition-colors text-lg font-medium"
           >
-            Get started free <ArrowRight className="w-5 h-5" />
+            Start for Free
+            <ArrowRight className="w-5 h-5" />
           </Link>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-12 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-sm">
-                📥
+      <footer className="py-12 border-t">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">IH</span>
               </div>
-              <span className="font-semibold text-gray-900">InputHaven</span>
+              <span className="font-bold">InputHaven</span>
             </div>
-            <div className="flex items-center gap-8 text-sm text-gray-500">
-              <Link href="/privacy" className="hover:text-gray-900">Privacy</Link>
-              <Link href="/terms" className="hover:text-gray-900">Terms</Link>
-              <Link href="/docs" className="hover:text-gray-900">Documentation</Link>
-              <Link href="/status" className="hover:text-gray-900">Status</Link>
-            </div>
-            <div className="text-sm text-gray-500">
-              © {new Date().getFullYear()} InputHaven. All rights reserved.
-            </div>
+            
+            <nav className="flex items-center gap-6">
+              <Link href="/docs" className="text-muted-foreground hover:text-foreground transition-colors">
+                Docs
+              </Link>
+              <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+                Privacy
+              </Link>
+              <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">
+                Terms
+              </Link>
+            </nav>
+            
+            <p className="text-sm text-muted-foreground">
+              © 2024 InputHaven. All rights reserved.
+            </p>
           </div>
         </div>
       </footer>

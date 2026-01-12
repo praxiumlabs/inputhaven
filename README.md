@@ -49,10 +49,23 @@ npm run dev
 
 ### 5. Access
 
-- **Web**: http://localhost:3000
+- **Web**: http://localhost:3002
 - **API**: http://localhost:3001
 - **MailHog**: http://localhost:8025
-- **MinIO**: http://localhost:9001
+- **MinIO Console**: http://localhost:9003
+
+## 🔧 Port Configuration
+
+| Service | Port |
+|---------|------|
+| Next.js Frontend | 3002 |
+| Hono API | 3001 |
+| PostgreSQL | 5433 |
+| Redis | 6380 |
+| MinIO API | 9002 |
+| MinIO Console | 9003 |
+| MailHog SMTP | 1025 |
+| MailHog Web | 8025 |
 
 ## 📁 Structure
 
@@ -66,5 +79,33 @@ inputhaven-v2/
 ├── docker-compose.yml
 └── package.json
 ```
+
+## 🛠️ Scripts
+
+```bash
+# Development
+npm run dev           # Start all apps in dev mode
+npm run build         # Build all apps
+
+# Database
+npm run db:generate   # Generate Prisma client
+npm run db:push       # Push schema to database
+npm run db:studio     # Open Prisma Studio
+npm run db:migrate    # Run migrations
+
+# Docker
+npm run docker:up     # Start Docker services
+npm run docker:down   # Stop Docker services
+```
+
+## 📝 Environment Variables
+
+Copy `.env.example` to `.env` and update the values:
+
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis connection string
+- `JWT_SECRET` - Secret for JWT tokens (change in production!)
+- `OPENAI_API_KEY` - For AI features (optional)
+- `STRIPE_SECRET_KEY` - For billing (optional)
 
 Built with ❤️

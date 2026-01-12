@@ -1,5 +1,5 @@
-import { prisma } from '../lib/prisma'
-import { redis } from '../lib/redis'
+import { prisma } from '../lib/prisma.js'
+import { redis } from '../lib/redis.js'
 
 interface WebhookPayload {
   event: 'submission.created' | 'submission.updated' | 'submission.spam'

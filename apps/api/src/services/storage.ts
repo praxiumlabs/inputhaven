@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid'
 
 const s3 = new S3Client({
   region: process.env.S3_REGION || 'auto',
-  endpoint: process.env.S3_ENDPOINT || 'http://localhost:9000',
+  endpoint: process.env.S3_ENDPOINT || 'http://localhost:9002',
   credentials: {
     accessKeyId: process.env.S3_ACCESS_KEY || 'inputhaven',
     secretAccessKey: process.env.S3_SECRET_KEY || 'inputhaven_dev_2024'
@@ -38,7 +38,7 @@ export async function processFileUpload(file: File): Promise<{
 
   return {
     storedName: key,
-    url: `${process.env.S3_PUBLIC_URL || 'http://localhost:9000'}/${BUCKET}/${key}`,
+    url: `${process.env.S3_PUBLIC_URL || 'http://localhost:9002'}/${BUCKET}/${key}`,
     size: file.size,
     mimeType: file.type
   }
@@ -58,4 +58,22 @@ export async function deleteFile(key: string): Promise<void> {
     Bucket: BUCKET,
     Key: key
   }))
+}
+
+export async function uploadBuffer(buffer: Buffer, filename: string, mimeType: string): Promise<string> {
+  const ext = filename.split('.').pop() || ''
+  const storedName = `${nanoid()}.${ext}`
+  const key = `uploads/${new Date().toISOString().split('T')[0]}/${storedName}`
+
+  await s3.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Body: buffer,
+    ContentType: mimeType,
+    Metadata: {
+      originalName: filename
+    }
+  }))
+
+  return `${process.env.S3_PUBLIC_URL || 'http://localhost:9002'}/${BUCKET}/${key}`
 }

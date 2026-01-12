@@ -7,18 +7,18 @@ import { prettyJSON } from 'hono/pretty-json'
 import { timing } from 'hono/timing'
 
 // Routes
-import { authRoutes } from './routes/auth'
-import { formsRoutes } from './routes/forms'
-import { submissionsRoutes } from './routes/submissions'
-import { webhooksRoutes } from './routes/webhooks'
-import { usersRoutes } from './routes/users'
-import { workspacesRoutes } from './routes/workspaces'
-import { analyticsRoutes } from './routes/analytics'
-import { publicSubmitRoute } from './routes/public-submit'
+import { authRoutes } from './routes/auth.js'
+import { formsRoutes } from './routes/forms.js'
+import { submissionsRoutes } from './routes/submissions.js'
+import { webhooksRoutes } from './routes/webhooks.js'
+import { usersRoutes } from './routes/users.js'
+import { workspacesRoutes } from './routes/workspaces.js'
+import { analyticsRoutes } from './routes/analytics.js'
+import { publicSubmitRoute } from './routes/public-submit.js'
 
 // Middleware
-import { authMiddleware } from './middleware/auth'
-import { rateLimiter } from './middleware/rate-limiter'
+import { authMiddleware } from './middleware/auth.js'
+import { rateLimiter } from './middleware/rate-limiter.js'
 
 // Types
 import type { Context } from 'hono'
@@ -35,11 +35,11 @@ const app = new Hono()
 // Security headers
 app.use('*', secureHeaders())
 
-// CORS
+// CORS - Fixed to include port 3002
 app.use('*', cors({
   origin: isProduction 
     ? ['https://inputhaven.com', 'https://app.inputhaven.com']
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    : ['http://localhost:3000', 'http://localhost:3002', 'http://127.0.0.1:3000', 'http://127.0.0.1:3002'],
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],

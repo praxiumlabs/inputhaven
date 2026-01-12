@@ -4,9 +4,9 @@ import { zValidator } from '@hono/zod-validator'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { nanoid } from 'nanoid'
-import { prisma } from '../lib/prisma'
-import { redis } from '../lib/redis'
-import { sendEmail } from '../services/email'
+import { prisma } from '../lib/prisma.js'
+import { redis } from '../lib/redis.js'
+import { sendEmail } from '../services/email.js'
 
 const app = new Hono()
 
@@ -193,7 +193,7 @@ app.post('/login', zValidator('json', loginSchema), async (c) => {
     }, 403)
   }
 
-  // Success! Reset failed attempts and update last login
+  // Success! Reset failed attempts and update login info
   await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -204,34 +204,21 @@ app.post('/login', zValidator('json', loginSchema), async (c) => {
     }
   })
 
-  // Clear rate limit on success
-  await redis.del(rateLimitKey)
-
   // Generate JWT
   const token = generateToken(user)
 
   // Create session
   await createSession(user.id, token, c)
 
-  // Log audit
-  await logAudit(user.id, 'login.success', {}, c)
+  // Clear rate limit
+  await redis.del(rateLimitKey)
 
-  // Get user's workspaces
-  const workspaces = await prisma.workspaceMember.findMany({
-    where: { userId: user.id },
-    include: {
-      workspace: {
-        select: { id: true, name: true, slug: true }
-      }
-    }
-  })
+  await logAudit(user.id, 'login.success', {}, c)
 
   return c.json({
     success: true,
-    message: 'Login successful',
     data: {
       user: sanitizeUser(user),
-      workspaces: workspaces.map(w => w.workspace),
       token
     }
   })
@@ -253,55 +240,15 @@ app.post('/logout', async (c) => {
       }
     }
 
-    // Delete session
+    // Delete session from database
     await prisma.session.deleteMany({
       where: { token }
     })
   }
 
-  return c.json({ success: true, message: 'Logged out successfully' })
-})
-
-// Get current user
-app.get('/me', async (c) => {
-  const user = c.get('user')
-  
-  if (!user) {
-    return c.json({
-      success: false,
-      error: { code: 'UNAUTHORIZED', message: 'Not authenticated' }
-    }, 401)
-  }
-
-  const fullUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    include: {
-      workspaces: {
-        include: {
-          workspace: {
-            select: { id: true, name: true, slug: true, logo: true }
-          }
-        }
-      }
-    }
-  })
-
-  if (!fullUser) {
-    return c.json({
-      success: false,
-      error: { code: 'USER_NOT_FOUND', message: 'User not found' }
-    }, 404)
-  }
-
   return c.json({
     success: true,
-    data: {
-      user: sanitizeUser(fullUser),
-      workspaces: fullUser.workspaces.map(w => ({
-        ...w.workspace,
-        role: w.role
-      }))
-    }
+    message: 'Logged out successfully'
   })
 })
 
@@ -323,7 +270,6 @@ app.post('/forgot-password', zValidator('json', forgotPasswordSchema), async (c)
 
   // Generate reset token
   const token = nanoid(32)
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
 
   // Store in Redis
   await redis.setex(`reset:${token}`, 3600, user.id)
@@ -393,6 +339,53 @@ app.post('/reset-password', zValidator('json', resetPasswordSchema), async (c) =
     success: true,
     message: 'Password reset successfully. Please log in with your new password.'
   })
+})
+
+// Get current user
+app.get('/me', async (c) => {
+  const authHeader = c.req.header('Authorization')
+  
+  if (!authHeader?.startsWith('Bearer ')) {
+    return c.json({
+      success: false,
+      error: { code: 'UNAUTHORIZED', message: 'No token provided' }
+    }, 401)
+  }
+
+  const token = authHeader.slice(7)
+  
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { userId: string }
+    
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      include: {
+        ownedWorkspaces: {
+          select: { id: true, name: true, slug: true }
+        }
+      }
+    })
+
+    if (!user) {
+      return c.json({
+        success: false,
+        error: { code: 'USER_NOT_FOUND', message: 'User not found' }
+      }, 404)
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        user: sanitizeUser(user),
+        workspaces: user.ownedWorkspaces
+      }
+    })
+  } catch (error) {
+    return c.json({
+      success: false,
+      error: { code: 'INVALID_TOKEN', message: 'Invalid token' }
+    }, 401)
+  }
 })
 
 // ==================== HELPERS ====================

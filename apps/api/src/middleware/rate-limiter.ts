@@ -1,6 +1,6 @@
 import { Context, Next } from 'hono'
 import { RateLimiterRedis } from 'rate-limiter-flexible'
-import { redis } from '../lib/redis'
+import { redis } from '../lib/redis.js'
 
 // Different rate limiters for different endpoints
 const limiters = {

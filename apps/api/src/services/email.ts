@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer'
-import { prisma } from '../lib/prisma'
+import { prisma } from '../lib/prisma.js'
 
 interface EmailOptions {
   to: string

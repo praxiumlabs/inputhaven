@@ -88,13 +88,43 @@ export async function generateTags(data: Record<string, any>): Promise<string[]>
   }
 }
 
+// Generate summary
+export async function generateSummary(data: Record<string, any>): Promise<string> {
+  if (!process.env.OPENAI_API_KEY) {
+    return ''
+  }
+
+  try {
+    const content = Object.entries(data)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('\n')
+    
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{
+        role: 'system',
+        content: 'Summarize this form submission in one sentence. Be concise and informative.'
+      }, {
+        role: 'user',
+        content: content.slice(0, 1000)
+      }],
+      max_tokens: 100
+    })
+
+    return response.choices[0]?.message?.content?.trim() || ''
+  } catch (error) {
+    console.error('AI summary error:', error)
+    return ''
+  }
+}
+
 // Basic spam check without AI
 function basicSpamCheck(data: Record<string, any>): number {
   const content = Object.values(data).join(' ').toLowerCase()
   let score = 0
 
   // Spam keywords
-  const spamWords = ['viagra', 'casino', 'lottery', 'winner', 'free money', 'click here', 'buy now', 'limited time']
+  const spamWords = ['viagra', 'casino', 'lottery', 'winner', 'free money', 'click here', 'buy now', 'limited time', 'act now', 'urgent']
   for (const word of spamWords) {
     if (content.includes(word)) score += 0.3
   }
@@ -104,8 +134,14 @@ function basicSpamCheck(data: Record<string, any>): number {
   if (linkCount > 3) score += 0.3
 
   // All caps
-  const capsRatio = (content.match(/[A-Z]/g) || []).length / content.length
+  const capsRatio = (content.match(/[A-Z]/g) || []).length / Math.max(content.length, 1)
   if (capsRatio > 0.5) score += 0.2
+
+  // Repeated characters
+  if (/(.)\1{5,}/.test(content)) score += 0.2
+
+  // Very short content
+  if (content.length < 10) score += 0.1
 
   return Math.min(1, score)
 }

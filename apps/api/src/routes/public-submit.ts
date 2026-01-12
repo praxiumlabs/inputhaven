@@ -1,11 +1,9 @@
 import { Hono } from 'hono'
-import { z } from 'zod'
-import { prisma } from '../lib/prisma'
-import { redis } from '../lib/redis'
-import { analyzeSpam, analyzeSentiment, generateTags } from '../services/ai'
-import { sendWebhook } from '../services/webhook'
-import { sendEmail } from '../services/email'
-import { processFileUpload } from '../services/storage'
+import { prisma } from '../lib/prisma.js'
+import { redis } from '../lib/redis.js'
+import { analyzeSpam, analyzeSentiment, generateTags } from '../services/ai.js'
+import { sendWebhook } from '../services/webhook.js'
+import { sendEmail } from '../services/email.js'
 
 const app = new Hono()
 
@@ -49,7 +47,7 @@ app.post('/', async (c) => {
     // Check domain restrictions
     const origin = c.req.header('Origin') || c.req.header('Referer') || ''
     if (form.allowedDomains.length > 0) {
-      const allowed = form.allowedDomains.some(domain => origin.includes(domain))
+      const allowed = form.allowedDomains.some((domain: string) => origin.includes(domain))
       if (!allowed) {
         return errorResponse(c, 'DOMAIN_NOT_ALLOWED', 'Submissions from this domain are not allowed', 403)
       }
@@ -117,8 +115,19 @@ app.post('/', async (c) => {
       }
     })
 
+    // Update user's monthly submission count
+    await prisma.user.update({
+      where: { id: form.workspace.ownerId },
+      data: {
+        submissionsThisMonth: { increment: 1 },
+        submissionsTotal: { increment: 1 }
+      }
+    })
+
     // Invalidate form cache
     await redis.del(`form:${accessKey}`)
+
+    const duration = Date.now() - startTime
 
     // Background tasks (don't await - fire and forget)
     if (!isSpam) {
@@ -152,20 +161,18 @@ app.post('/', async (c) => {
       }
     }
 
-    // Return response
-    const duration = Date.now() - startTime
-    return successResponse(c, form, body, false, submission.id, duration)
+    return successResponse(c, form, body, isSpam, submission.id, duration)
 
   } catch (error) {
     console.error('Submission error:', error)
-    return errorResponse(c, 'SUBMISSION_ERROR', 'Failed to process submission', 500)
+    return errorResponse(c, 'INTERNAL_ERROR', 'An error occurred processing your submission', 500)
   }
 })
 
-// ==================== HELPER FUNCTIONS ====================
+// ==================== HELPERS ====================
 
 async function getForm(accessKey: string) {
-  // Check cache
+  // Check cache first
   const cacheKey = `form:${accessKey}`
   const cached = await redis.get(cacheKey)
   
@@ -173,14 +180,17 @@ async function getForm(accessKey: string) {
     return JSON.parse(cached)
   }
 
-  // Get from database
+  // Fetch from database
   const form = await prisma.form.findUnique({
     where: { accessKey },
     include: {
       workspace: {
-        include: {
+        select: {
+          id: true,
+          ownerId: true,
           owner: {
             select: {
+              id: true,
               plan: true,
               submissionsThisMonth: true
             }
@@ -196,16 +206,19 @@ async function getForm(accessKey: string) {
 
   // Cache for 5 minutes
   await redis.setex(cacheKey, 300, JSON.stringify(form))
+
   return form
 }
 
-async function checkRateLimits(form: any, ip: string): Promise<{ allowed: boolean; message: string }> {
-  // IP rate limit: 30 submissions per minute per IP
-  const ipKey = `ratelimit:submit:${ip}`
+async function checkRateLimits(form: any, clientIP: string): Promise<{ allowed: boolean; message: string }> {
+  // Per-IP rate limit (30 per minute)
+  const ipKey = `ratelimit:ip:${form.id}:${clientIP}`
   const ipCount = await redis.incr(ipKey)
+  
   if (ipCount === 1) {
     await redis.expire(ipKey, 60)
   }
+  
   if (ipCount > 30) {
     return { allowed: false, message: 'Too many submissions from this IP. Please wait.' }
   }
@@ -282,7 +295,7 @@ function successResponse(c: any, form: any, data: any, isSpam: boolean, submissi
   }
 
   // Redirect for form submissions
-  const redirectUrl = form.redirectUrl || '/success'
+  const redirectUrl = form.redirectUrl || `${process.env.APP_URL}/success`
   return c.redirect(redirectUrl, 303)
 }
 
@@ -295,7 +308,7 @@ function errorResponse(c: any, code: string, message: string, status: number) {
   }
 
   // For regular form submissions, redirect to error page
-  return c.redirect(`/error?code=${code}&message=${encodeURIComponent(message)}`, 303)
+  return c.redirect(`${process.env.APP_URL}/error?code=${code}&message=${encodeURIComponent(message)}`, 303)
 }
 
 export { app as publicSubmitRoute }

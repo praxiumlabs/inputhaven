@@ -1,7 +1,7 @@
 import { Context, Next } from 'hono'
 import jwt from 'jsonwebtoken'
-import { prisma } from '../lib/prisma'
-import { redis } from '../lib/redis'
+import { prisma } from '../lib/prisma.js'
+import { redis } from '../lib/redis.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production'
 

@@ -1,6 +1,7 @@
 import Redis from 'ioredis'
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
+// Default to port 6380 to match docker-compose
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6380'
 
 export const redis = new Redis(REDIS_URL, {
   maxRetriesPerRequest: 3,

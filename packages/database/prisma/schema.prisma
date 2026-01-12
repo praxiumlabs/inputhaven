@@ -98,8 +98,7 @@ model Workspace {
   owner        User     @relation("WorkspaceOwner", fields: [ownerId], references: [id])
   
   // Settings
-  customDomain String?  @unique
-  brandColor   String   @default("#6366f1")
+  customDomain String?
   
   // Timestamps
   createdAt    DateTime @default(now())
@@ -108,22 +107,22 @@ model Workspace {
   // Relations
   members      WorkspaceMember[]
   forms        Form[]
-  apiKeys      ApiKey[]
   integrations Integration[]
+  apiKeys      ApiKey[]
   
-  @@index([slug])
   @@index([ownerId])
+  @@index([slug])
 }
 
 model WorkspaceMember {
-  id          String        @id @default(cuid())
-  workspaceId String
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role        WorkspaceRole @default(MEMBER)
-  invitedAt   DateTime      @default(now())
-  joinedAt    DateTime?
+  id           String   @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  role         WorkspaceRole @default(MEMBER)
+  joinedAt     DateTime @default(now())
   
   @@unique([workspaceId, userId])
   @@index([workspaceId])
@@ -144,27 +143,29 @@ model Form {
   workspaceId     String
   workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   
-  // Basic Info
+  // Basic info
   name            String
   description     String?
   accessKey       String   @unique @default(cuid())
   
-  // Configuration
-  schema          Json?    // Form field schema for builder
-  settings        Json     @default("{}")  // All form settings
-  styling         Json     @default("{}")  // Custom styling/theme
+  // Schema (JSON Schema for validation)
+  schema          Json     @default("{}")
   
-  // Endpoints
-  emailTo         String[]
-  redirectUrl     String?
+  // Styling
+  styling         Json     @default("{}")
+  
+  // Notifications
+  emailTo         String[] @default([])
   webhookUrl      String?
-  successMessage  String?
+  webhookSecret   String?
+  
+  // Redirect & Messages
+  redirectUrl     String?
+  successMessage  String   @default("Thank you for your submission!")
   
   // Security
   allowedDomains  String[] @default([])
   honeypotField   String   @default("_gotcha")
-  recaptchaEnabled Boolean @default(false)
-  recaptchaSecret String?
   requireAuth     Boolean  @default(false)
   
   // AI Features
@@ -443,7 +444,6 @@ model AuditLog {
   
   @@index([userId])
   @@index([action])
-  @@index([resource])
   @@index([createdAt])
 }
 
@@ -452,9 +452,9 @@ model Notification {
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  type         String   // submission, billing, security, etc.
+  type         String   // submission, team_invite, plan_limit, etc.
   title        String
-  body         String
+  message      String
   link         String?
   isRead       Boolean  @default(false)
   
@@ -477,9 +477,9 @@ model EmailQueue {
   status       String   @default("pending") // pending, sent, failed
   attempts     Int      @default(0)
   lastError    String?
+  scheduledFor DateTime @default(now())
   sentAt       DateTime?
   
-  scheduledFor DateTime @default(now())
   createdAt    DateTime @default(now())
   
   @@index([status])
