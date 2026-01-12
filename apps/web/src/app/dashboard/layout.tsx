@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   ChevronDown,
-  Plus
+  Plus,
+  Sparkles
 } from 'lucide-react'
 
 interface User {
@@ -73,6 +74,7 @@ export default function DashboardLayout({
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/dashboard/forms', icon: FileText, label: 'Forms' },
     { href: '/dashboard/submissions', icon: Inbox, label: 'Submissions' },
+    { href: '/dashboard/templates', icon: Sparkles, label: 'Templates' },
     { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
     { href: '/dashboard/team', icon: Users, label: 'Team' },
     { href: '/dashboard/settings', icon: Settings, label: 'Settings' }

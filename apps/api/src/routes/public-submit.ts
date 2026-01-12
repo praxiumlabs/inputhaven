@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { prisma } from '../lib/prisma.js'
 import { redis } from '../lib/redis.js'
-import { analyzeSpam, analyzeSentiment, generateTags } from '../services/ai.js'
+import { analyzeSpam } from '../services/ai.js'
+import { processSubmission, generateAutoResponse } from '../services/ai-processor.js'
 import { sendWebhook } from '../services/webhook.js'
 import { sendEmail } from '../services/email.js'
 
@@ -79,18 +80,15 @@ app.post('/', async (c) => {
       origin,
       referrer: c.req.header('Referer'),
       country: c.req.header('CF-IPCountry'),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      source: 'web'
     }
 
-    // AI Processing (async, non-blocking for response)
+    // Quick spam check (blocking)
     let spamScore = 0
-    let sentiment = null
-    let tags: string[] = []
-
     if (form.spamThreshold > 0) {
       spamScore = await analyzeSpam(body)
     }
-    
     const isSpam = spamScore >= form.spamThreshold
 
     // Create submission
@@ -100,8 +98,6 @@ app.post('/', async (c) => {
         data: body,
         metadata,
         spamScore,
-        sentiment,
-        tags,
         isSpam
       }
     })
@@ -129,35 +125,44 @@ app.post('/', async (c) => {
 
     const duration = Date.now() - startTime
 
-    // Background tasks (don't await - fire and forget)
+    // ==================== BACKGROUND TASKS ====================
+    // Fire and forget - don't block response
+    
     if (!isSpam) {
-      // Send email notifications
+      // 🤖 AI Processing (classification, sentiment, summary, entities)
+      // This uses the new UFP AI processor with Claude
+      if (form.aiEnabled) {
+        processSubmission(submission.id, form.id)
+          .then(async (aiResults) => {
+            console.log(`✨ AI processed submission ${submission.id}:`, {
+              classification: aiResults.classification,
+              sentiment: aiResults.sentiment,
+              processingTime: aiResults.processingTime
+            })
+            
+            // Send auto-response if enabled
+            if (form.aiAutoRespond && aiResults) {
+              const autoResponse = await generateAutoResponse(submission.id, form.id, aiResults)
+              if (autoResponse && body.email) {
+                sendEmail({
+                  to: body.email,
+                  subject: `Re: ${form.name}`,
+                  html: autoResponse.replace(/\n/g, '<br>')
+                }).catch(console.error)
+              }
+            }
+          })
+          .catch(err => console.error('AI processing error:', err))
+      }
+
+      // 📧 Send email notifications
       if (form.emailTo.length > 0) {
         sendEmailNotification(form, submission, body).catch(console.error)
       }
 
-      // Send webhook
+      // 🔗 Send webhook
       if (form.webhookUrl) {
         sendWebhook(form, submission, body).catch(console.error)
-      }
-
-      // AI analysis (async)
-      if (form.sentimentEnabled) {
-        analyzeSentiment(body).then(async (result) => {
-          await prisma.submission.update({
-            where: { id: submission.id },
-            data: { sentiment: result }
-          })
-        }).catch(console.error)
-      }
-
-      if (form.autoTagEnabled) {
-        generateTags(body).then(async (result) => {
-          await prisma.submission.update({
-            where: { id: submission.id },
-            data: { tags: result }
-          })
-        }).catch(console.error)
       }
     }
 

@@ -6,7 +6,7 @@ import { secureHeaders } from 'hono/secure-headers'
 import { prettyJSON } from 'hono/pretty-json'
 import { timing } from 'hono/timing'
 
-// Routes
+// Core Routes
 import { authRoutes } from './routes/auth.js'
 import { formsRoutes } from './routes/forms.js'
 import { submissionsRoutes } from './routes/submissions.js'
@@ -15,6 +15,11 @@ import { usersRoutes } from './routes/users.js'
 import { workspacesRoutes } from './routes/workspaces.js'
 import { analyticsRoutes } from './routes/analytics.js'
 import { publicSubmitRoute } from './routes/public-submit.js'
+
+// UFP Routes (Universal Form Protocol)
+import { templatesRoutes } from './routes/templates/index.js'
+import { mcpRoutes } from './routes/mcp/index.js'
+import { ufpRoutes } from './routes/ufp/index.js'
 
 // Middleware
 import { authMiddleware } from './middleware/auth.js'
@@ -35,15 +40,15 @@ const app = new Hono()
 // Security headers
 app.use('*', secureHeaders())
 
-// CORS - Fixed to include port 3002
+// CORS - Support multiple origins including MCP clients
 app.use('*', cors({
   origin: isProduction 
-    ? ['https://inputhaven.com', 'https://app.inputhaven.com']
+    ? ['https://inputhaven.com', 'https://app.inputhaven.com', 'https://api.inputhaven.com']
     : ['http://localhost:3000', 'http://localhost:3002', 'http://127.0.0.1:3000', 'http://127.0.0.1:3002'],
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
-  exposeHeaders: ['X-Request-Id', 'X-RateLimit-Remaining'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-MCP-Session', 'X-MCP-Agent', 'X-MCP-Version'],
+  exposeHeaders: ['X-Request-Id', 'X-RateLimit-Remaining', 'X-UFP-Version'],
   maxAge: 86400,
 }))
 
@@ -58,7 +63,7 @@ if (!isProduction) {
   app.use('*', prettyJSON())
 }
 
-// ==================== PUBLIC ROUTES ====================
+// ==================== DISCOVERY ENDPOINTS ====================
 
 // Health check
 app.get('/health', (c: Context) => {
@@ -66,31 +71,99 @@ app.get('/health', (c: Context) => {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     version: '2.0.0',
+    ufp_version: '1.0',
     environment: process.env.NODE_ENV || 'development'
   })
 })
 
-// Public form submission endpoint (no auth required)
+// UFP Well-Known Discovery Endpoint
+// This is what AI agents and tools will discover first
+app.get('/.well-known/ufp.json', (c: Context) => {
+  const baseUrl = isProduction ? 'https://api.inputhaven.com' : `http://localhost:${PORT}`
+  
+  return c.json({
+    ufp_version: '1.0',
+    provider: {
+      name: 'InputHaven',
+      description: 'Universal Form Protocol - The standard for AI-native form handling',
+      url: 'https://inputhaven.com',
+      documentation: 'https://docs.inputhaven.com/ufp',
+      support: 'support@inputhaven.com'
+    },
+    endpoints: {
+      submit: `${baseUrl}/v1/submit`,
+      submit_ufp: `${baseUrl}/v1/ufp/submit`,
+      schema: `${baseUrl}/v1/ufp/forms/{form_id}/schema`,
+      validate: `${baseUrl}/v1/ufp/forms/{form_id}/validate`,
+      types: `${baseUrl}/v1/ufp/types`,
+      directory: `${baseUrl}/v1/ufp/directory`
+    },
+    mcp: {
+      manifest: `${baseUrl}/mcp/v1/manifest`,
+      tools: `${baseUrl}/mcp/v1/tools`,
+      resources: `${baseUrl}/mcp/v1/resources`,
+      sessions: `${baseUrl}/mcp/v1/sessions`
+    },
+    capabilities: {
+      ai_processing: true,
+      semantic_types: true,
+      mcp_protocol: true,
+      webhooks: true,
+      auto_response: true,
+      real_time: false
+    },
+    authentication: {
+      methods: ['api_key', 'mcp_session'],
+      api_key_header: 'Authorization',
+      mcp_session_header: 'X-MCP-Session'
+    }
+  })
+})
+
+// MCP Well-Known (alternative discovery path)
+app.get('/.well-known/mcp.json', (c: Context) => {
+  const baseUrl = isProduction ? 'https://api.inputhaven.com' : `http://localhost:${PORT}`
+  
+  return c.json({
+    name: 'inputhaven',
+    version: '1.0.0',
+    protocol_version: '2024-11-05',
+    manifest_url: `${baseUrl}/mcp/v1/manifest`
+  })
+})
+
+// ==================== PUBLIC ROUTES (NO AUTH) ====================
+
+// Public form submission endpoint
 app.route('/v1/submit', publicSubmitRoute)
 
 // Auth routes (login, register, etc.)
 app.route('/v1/auth', authRoutes)
 
+// MCP Server (has its own auth via session tokens)
+app.route('/mcp/v1', mcpRoutes)
+
+// UFP Public endpoints (schema discovery, semantic types)
+app.route('/v1/ufp', ufpRoutes)
+
 // ==================== PROTECTED ROUTES ====================
 
-// Apply auth middleware to all /v1 routes except above
+// Apply auth middleware to all /v1 routes except those already handled above
 app.use('/v1/*', authMiddleware)
 
 // Rate limiting for authenticated routes
 app.use('/v1/*', rateLimiter)
 
-// API routes
+// Core API routes
 app.route('/v1/users', usersRoutes)
 app.route('/v1/workspaces', workspacesRoutes)
 app.route('/v1/forms', formsRoutes)
 app.route('/v1/submissions', submissionsRoutes)
 app.route('/v1/webhooks', webhooksRoutes)
 app.route('/v1/analytics', analyticsRoutes)
+
+// Template management (protected)
+app.route('/v1/templates', templatesRoutes)
 
 // ==================== ERROR HANDLING ====================
 
@@ -100,7 +173,8 @@ app.notFound((c: Context) => {
     success: false,
     error: {
       code: 'NOT_FOUND',
-      message: 'The requested endpoint does not exist'
+      message: 'The requested endpoint does not exist',
+      hint: 'Check /.well-known/ufp.json for available endpoints'
     }
   }, 404)
 })
@@ -127,14 +201,21 @@ app.onError((err: Error, c: Context) => {
 // ==================== START SERVER ====================
 
 console.log(`
-╔═══════════════════════════════════════════════╗
-║                                               ║
-║   📥 InputHaven API v2.0.0                    ║
-║                                               ║
-║   Environment: ${(process.env.NODE_ENV || 'development').padEnd(28)}║
-║   Port: ${PORT.toString().padEnd(36)}║
-║                                               ║
-╚═══════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════╗
+║                                                           ║
+║   📥 InputHaven API v2.0.0                                ║
+║   🌐 Universal Form Protocol v1.0                         ║
+║                                                           ║
+║   Environment: ${(process.env.NODE_ENV || 'development').padEnd(40)}║
+║   Port: ${PORT.toString().padEnd(48)}║
+║                                                           ║
+║   Endpoints:                                              ║
+║   ├─ REST API:     /v1/*                                  ║
+║   ├─ MCP Server:   /mcp/v1/*                              ║
+║   ├─ UFP:          /v1/ufp/*                              ║
+║   └─ Discovery:    /.well-known/ufp.json                  ║
+║                                                           ║
+╚═══════════════════════════════════════════════════════════╝
 `)
 
 serve({
@@ -142,6 +223,8 @@ serve({
   port: PORT,
 }, (info) => {
   console.log(`✅ Server running at http://localhost:${info.port}`)
+  console.log(`📋 UFP Discovery: http://localhost:${info.port}/.well-known/ufp.json`)
+  console.log(`🤖 MCP Manifest:  http://localhost:${info.port}/mcp/v1/manifest`)
 })
 
 export default app

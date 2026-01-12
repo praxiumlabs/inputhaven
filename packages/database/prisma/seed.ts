@@ -299,7 +299,7 @@ async function seed() {
           email: 'system@inputhaven.com',
           name: 'InputHaven System',
           passwordHash: 'SYSTEM_USER_NO_LOGIN',
-          emailVerified:  new Date() 
+          emailVerified: true
         }
       })
     }
