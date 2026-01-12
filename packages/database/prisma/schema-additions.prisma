@@ -1,0 +1,33 @@
+// ==================== INTEGRATION LOGS ====================
+// Add this to the existing schema.prisma file
+
+model IntegrationLog {
+  id            String   @id @default(cuid())
+  integrationId String
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  
+  formId        String
+  form          Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  submissionId  String
+  
+  // Execution details
+  success       Boolean  @default(false)
+  responseCode  Int?
+  responseBody  String?  @db.Text
+  error         String?
+  duration      Int      // ms
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([integrationId])
+  @@index([formId])
+  @@index([createdAt])
+}
+
+// Update the Integration model to add the relation
+// Add this line to the existing Integration model:
+// logs IntegrationLog[]
+
+// Update the Form model to add the relation  
+// Add this line to the existing Form model:
+// integrationLogs IntegrationLog[]

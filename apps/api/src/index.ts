@@ -27,6 +27,8 @@ import { rateLimiter } from './middleware/rate-limiter.js'
 
 // Types
 import type { Context } from 'hono'
+import { integrationsRoutes } from './routes/integrations.js'
+
 
 // Environment
 const PORT = parseInt(process.env.PORT || '3001')
@@ -134,6 +136,8 @@ app.get('/.well-known/mcp.json', (c: Context) => {
 
 // ==================== PUBLIC ROUTES (NO AUTH) ====================
 
+
+
 // Public form submission endpoint
 app.route('/v1/submit', publicSubmitRoute)
 
@@ -145,6 +149,24 @@ app.route('/mcp/v1', mcpRoutes)
 
 // UFP Public endpoints (schema discovery, semantic types)
 app.route('/v1/ufp', ufpRoutes)
+
+
+// Public integrations list (available types)
+app.get('/v1/integrations/available', async (c) => {
+  const { INTEGRATION_DEFINITIONS } = await import('./services/integrations/index.js')
+  const integrations = Object.values(INTEGRATION_DEFINITIONS).map(def => ({
+    type: def.type,
+    name: def.name,
+    description: def.description,
+    icon: def.icon,
+    color: def.color,
+    category: def.category,
+    features: def.features,
+    docsUrl: def.docsUrl,
+    configSchema: def.configSchema
+  }))
+  return c.json({ success: true, data: integrations })
+})
 
 // ==================== PROTECTED ROUTES ====================
 
@@ -161,6 +183,8 @@ app.route('/v1/forms', formsRoutes)
 app.route('/v1/submissions', submissionsRoutes)
 app.route('/v1/webhooks', webhooksRoutes)
 app.route('/v1/analytics', analyticsRoutes)
+app.route('/v1/integrations', integrationsRoutes) 
+
 
 // Template management (protected)
 app.route('/v1/templates', templatesRoutes)
