@@ -1,6 +1,6 @@
 {
   "name": "@inputhaven/database",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
@@ -9,7 +9,11 @@
     "push": "prisma db push",
     "migrate": "prisma migrate dev",
     "studio": "prisma studio",
-    "seed": "tsx src/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "reset": "prisma db push --force-reset && npm run seed"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0"

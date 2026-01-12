@@ -1,5 +1,5 @@
 // Prisma Schema for InputHaven v2
-// Modern Form Backend Platform
+// Universal Form Protocol (UFP) - The Standard for AI-Era Data Collection
 
 generator client {
   provider = "prisma-client-js"
@@ -109,6 +109,7 @@ model Workspace {
   forms        Form[]
   integrations Integration[]
   apiKeys      ApiKey[]
+  templates    Template[]
   
   @@index([ownerId])
   @@index([slug])
@@ -173,6 +174,26 @@ model Form {
   autoTagEnabled  Boolean  @default(false)
   sentimentEnabled Boolean @default(false)
   
+  // UFP Configuration
+  ufpEnabled      Boolean  @default(true)
+  ufpUri          String?  @unique  // ufp://inputhaven.com/f/{id}
+  ufpSchema       Json?    // Full UFP schema
+  semanticTypes   Json?    // Field to semantic type mapping
+  
+  // AI Configuration (Enhanced)
+  aiEnabled           Boolean  @default(true)
+  aiClassify          Boolean  @default(true)
+  aiSentiment         Boolean  @default(true)
+  aiSummarize         Boolean  @default(true)
+  aiExtractEntities   Boolean  @default(true)
+  aiAutoRespond       Boolean  @default(false)
+  aiRoutingRules      Json     @default("[]")
+  aiInstructions      Json?    // For AI agents
+  
+  // MCP Configuration
+  mcpEnabled          Boolean  @default(true)
+  mcpCapabilities     String[] @default(["submit", "query"])
+  
   // Analytics
   submissionCount Int      @default(0)
   viewCount       Int      @default(0)
@@ -192,10 +213,14 @@ model Form {
   webhookLogs     WebhookLog[]
   formViews       FormView[]
   autoResponders  AutoResponder[]
+  templates       FormTemplate[]
+  aiProcessors    AIProcessor[]
+  publicListing   PublicForm?
   
   @@index([workspaceId])
   @@index([accessKey])
   @@index([isActive])
+  @@index([ufpUri])
 }
 
 model FormView {
@@ -409,6 +434,9 @@ model ApiKey {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   
+  // Relations
+  mcpSessions  MCPSession[]
+  
   @@index([userId])
   @@index([keyHash])
 }
@@ -484,4 +512,265 @@ model EmailQueue {
   
   @@index([status])
   @@index([scheduledFor])
+}
+
+// ==================== UNIVERSAL FORM PROTOCOL (UFP) ====================
+
+model Template {
+  id            String        @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  // Identity
+  name          String
+  slug          String        // URL-friendly identifier
+  description   String?
+  type          TemplateType
+  category      String?       // contact, support, lead-gen, feedback, etc.
+  
+  // UFP Schema
+  ufpVersion    String        @default("1.0")
+  schema        Json          // UFP Schema definition
+  semantics     Json?         // Semantic type mappings
+  variables     Json          @default("[]")
+  
+  // AI Configuration
+  aiEnabled         Boolean   @default(true)
+  aiInstructions    Json?     // Structured AI instructions
+  aiModel           String?   
+  aiTemperature     Float     @default(0.3)
+  aiActions         Json      @default("[]")  // What AI should do
+  
+  // MCP Configuration
+  mcpEnabled        Boolean   @default(true)
+  mcpCapabilities   String[]  @default(["submit", "query"])
+  
+  // Content (for email/response templates)
+  subject       String?
+  body          String?
+  bodyHtml      String?
+  
+  // Versioning
+  version       Int           @default(1)
+  isPublished   Boolean       @default(false)
+  isSystem      Boolean       @default(false)  // Built-in templates
+  isPublic      Boolean       @default(false)  // In public library
+  
+  // Stats
+  usageCount    Int           @default(0)
+  rating        Float?
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Relations
+  versions      TemplateVersion[]
+  forms         FormTemplate[]
+  
+  @@unique([workspaceId, slug])
+  @@index([type])
+  @@index([category])
+  @@index([isPublic])
+}
+
+model TemplateVersion {
+  id          String    @id @default(cuid())
+  templateId  String
+  template    Template  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  version     Int
+  schema      Json
+  changelog   String?
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  
+  @@unique([templateId, version])
+  @@index([templateId])
+}
+
+model FormTemplate {
+  id          String    @id @default(cuid())
+  formId      String
+  form        Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  templateId  String
+  template    Template  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  purpose     String    // notification, auto_response, webhook, processor
+  isActive    Boolean   @default(true)
+  config      Json      @default("{}")
+  
+  createdAt   DateTime  @default(now())
+  
+  @@unique([formId, templateId, purpose])
+  @@index([formId])
+}
+
+enum TemplateType {
+  FORM_SCHEMA
+  EMAIL_NOTIFICATION
+  AUTO_RESPONSE
+  WEBHOOK_PAYLOAD
+  AI_PROCESSOR
+  OUTPUT_TRANSFORM
+  AGENT_INSTRUCTION
+}
+
+// AI Processing Pipeline
+model AIProcessor {
+  id            String   @id @default(cuid())
+  formId        String
+  form          Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  
+  name          String
+  description   String?
+  order         Int      @default(0)  // Execution order
+  
+  // Trigger
+  trigger       ProcessorTrigger  @default(ON_SUBMISSION)
+  conditions    Json?     // When to run
+  
+  // AI Config
+  provider      String    @default("anthropic")
+  model         String    @default("claude-sonnet-4-20250514")
+  systemPrompt  String    @db.Text
+  userPrompt    String    @db.Text  // Template with {{variables}}
+  temperature   Float     @default(0.3)
+  maxTokens     Int       @default(1000)
+  
+  // Output
+  outputType    ProcessorOutput
+  outputSchema  Json?     // Expected output structure
+  outputField   String?   // Where to store result
+  
+  // Post-processing
+  actions       Json      @default("[]")
+  
+  isActive      Boolean   @default(true)
+  
+  // Stats
+  executionCount  Int     @default(0)
+  avgLatencyMs    Int?
+  successRate     Float?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([formId])
+}
+
+enum ProcessorTrigger {
+  ON_SUBMISSION
+  ON_UPDATE
+  ON_SCHEDULE
+  ON_DEMAND
+  ON_WEBHOOK
+}
+
+enum ProcessorOutput {
+  CLASSIFICATION
+  EXTRACTION
+  SENTIMENT
+  SUMMARY
+  RESPONSE
+  ROUTING
+  SCORE
+  TAGS
+  CUSTOM
+}
+
+// MCP Sessions for AI Agents
+model MCPSession {
+  id            String    @id @default(cuid())
+  
+  // Identity
+  agentId       String?   // AI agent identifier
+  agentType     String?   // claude, gpt, custom
+  sessionToken  String    @unique
+  
+  // Access
+  apiKeyId      String?
+  apiKey        ApiKey?   @relation(fields: [apiKeyId], references: [id])
+  
+  // Permissions
+  allowedForms  String[]  @default([])  // Empty = all forms
+  capabilities  String[]  @default(["submit", "query"])
+  
+  // Rate limiting
+  requestCount  Int       @default(0)
+  lastRequestAt DateTime?
+  
+  // Lifecycle
+  expiresAt     DateTime
+  isActive      Boolean   @default(true)
+  
+  createdAt     DateTime  @default(now())
+  
+  @@index([sessionToken])
+  @@index([agentId])
+}
+
+// Semantic Type Registry
+model SemanticType {
+  id            String    @id @default(cuid())
+  
+  // Identity
+  namespace     String    // person, organization, location, content, meta
+  name          String    // full_name, email, address
+  fullPath      String    @unique  // person.full_name
+  
+  // Definition
+  description   String
+  examples      String[]
+  validation    Json?     // Validation rules
+  formats       String[]  @default([])
+  
+  // AI Hints
+  aiDescription String?
+  aiExamples    String[]  @default([])
+  
+  // Standards mapping
+  jsonSchemaType  String?   // string, number, boolean, etc.
+  schemaOrgType   String?   // Schema.org mapping
+  openApiFormat   String?   // OpenAPI format hint
+  
+  isSystem      Boolean   @default(true)
+  
+  createdAt     DateTime  @default(now())
+  
+  @@index([namespace])
+}
+
+// Public Form Directory (for discoverability)
+model PublicForm {
+  id            String    @id @default(cuid())
+  formId        String    @unique
+  form          Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  
+  // Discoverability
+  title         String
+  description   String
+  category      String
+  tags          String[]
+  
+  // UFP URI
+  ufpUri        String    @unique  // ufp://inputhaven.com/forms/{slug}
+  
+  // Verification
+  isVerified    Boolean   @default(false)
+  verifiedAt    DateTime?
+  
+  // Stats
+  viewCount     Int       @default(0)
+  submitCount   Int       @default(0)
+  rating        Float?
+  
+  // SEO
+  metaTitle     String?
+  metaDescription String?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([category])
+  @@index([tags])
 }
