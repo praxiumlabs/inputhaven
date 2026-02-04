@@ -1,5 +1,6 @@
-import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 const publicPaths = [
   "/",
@@ -19,6 +20,8 @@ const publicPaths = [
   "/api/auth",
   "/api/health",
   "/api/webhooks",
+  "/api/cron",
+  "/vs",
 ];
 
 function isPublicPath(pathname: string) {
@@ -27,7 +30,7 @@ function isPublicPath(pathname: string) {
   );
 }
 
-export default auth((req) => {
+export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Allow public paths
@@ -44,23 +47,22 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
+  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+
   // Redirect unauthenticated users to login
-  if (!req.auth) {
+  if (!token) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   // Redirect authenticated users away from auth pages
-  if (
-    req.auth &&
-    (pathname === "/login" || pathname === "/register")
-  ) {
+  if (pathname === "/login" || pathname === "/register") {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
