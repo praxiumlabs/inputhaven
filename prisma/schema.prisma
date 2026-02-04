@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  emailVerified         DateTime?
+  password              String?
+  name                  String?
+  company               String?
+  image                 String?
+  plan                  Plan      @default(FREE)
+  stripeCustomerId      String?   @unique
+  stripeSubscriptionId  String?   @unique
+  twoFactorEnabled      Boolean   @default(false)
+  twoFactorSecret       String?
+  lastLoginAt           DateTime?
+  lastLoginIp           String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  accounts    Account[]
+  sessions    Session[]
+  forms       Form[]
+  apiKeys     ApiKey[]
+  auditLogs   AuditLog[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Form {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  accessKey       String   @unique @default(cuid())
+  emailTo         String
+  webhookUrl      String?
+  webhookSecret   String?
+  honeypotField   String?
+  allowedDomains  String[] @default([])
+  customSubject   String?
+  autoResponse    Boolean  @default(false)
+  autoResponseMsg String?  @db.Text
+  builderConfig   Json?
+  aiSpamFilter    Boolean  @default(false)
+  emailRoutes     Json?    @default("[]")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  submissions Submission[]
+  webhookLogs WebhookLog[]
+
+  @@index([userId])
+  @@map("forms")
+}
+
+model Submission {
+  id          String   @id @default(cuid())
+  formId      String
+  data        Json
+  ipAddress   String?
+  userAgent   String?
+  referer     String?
+  isSpam      Boolean  @default(false)
+  isRead      Boolean  @default(false)
+  spamScore   Int?
+  spamReason  String?
+  createdAt   DateTime @default(now())
+
+  form        Form         @relation(fields: [formId], references: [id], onDelete: Cascade)
+  files       FileUpload[]
+  emails      EmailQueue[]
+
+  @@index([formId])
+  @@index([createdAt])
+  @@index([formId, createdAt, isSpam])
+  @@map("submissions")
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  keyHash   String
+  keyPrefix String
+  lastUsed  DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_keys")
+}
+
+model EmailQueue {
+  id           String      @id @default(cuid())
+  submissionId String
+  to           String
+  subject      String
+  status       EmailStatus @default(PENDING)
+  resendId     String?
+  error        String?
+  attempts     Int         @default(0)
+  nextRetryAt  DateTime?
+  createdAt    DateTime    @default(now())
+  sentAt       DateTime?
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextRetryAt])
+  @@map("email_queue")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  ipAddress String?
+  details   Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model WebhookLog {
+  id           String   @id @default(cuid())
+  formId       String
+  url          String
+  method       String   @default("POST")
+  requestBody  Json?
+  responseCode Int?
+  responseBody String?  @db.Text
+  durationMs   Int?
+  success      Boolean  @default(false)
+  error        String?
+  createdAt    DateTime @default(now())
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
+  @@map("webhook_logs")
+}
+
+model FileUpload {
+  id            String   @id @default(cuid())
+  submissionId  String
+  fileName      String
+  fileSize      Int
+  mimeType      String
+  r2Key         String   @unique
+  downloadToken String   @unique @default(cuid())
+  createdAt     DateTime @default(now())
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@map("file_uploads")
+}

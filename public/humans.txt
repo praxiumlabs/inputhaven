@@ -1,0 +1,23 @@
+/* TEAM */
+Name: InputHaven
+Site: https://inputhaven.com
+Contact: support@inputhaven.com
+
+/* TECHNOLOGY */
+Framework: Next.js 16
+Language: TypeScript
+CSS: Tailwind CSS 4
+Database: PostgreSQL (Neon)
+ORM: Prisma
+Auth: NextAuth.js v5
+Email: Resend
+Storage: Cloudflare R2
+Cache: Upstash Redis
+Payments: Stripe
+AI: Anthropic Claude
+Hosting: Vercel
+
+/* SITE */
+Last update: 2025-01-15
+Standards: HTML5, CSS3, ES2024
+Software: Visual Studio Code

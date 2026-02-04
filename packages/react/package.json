@@ -1,0 +1,23 @@
+{
+  "name": "@inputhaven/react",
+  "version": "1.0.0",
+  "description": "React component for InputHaven form backend",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.tsx --format cjs,esm --dts --external react",
+    "dev": "tsup src/index.tsx --format cjs,esm --dts --external react --watch"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "keywords": ["react", "form", "backend", "inputhaven", "contact-form"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inputhaven/inputhaven-react"
+  }
+}

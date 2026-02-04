@@ -1,0 +1,39 @@
+# InputHaven
+
+> Form backend as a service. The most affordable way to collect form submissions, get email notifications, fight spam with AI, and manage everything from a dashboard.
+
+## Quick Start
+
+Add this to any HTML form:
+```html
+<form action="https://inputhaven.com/api/v1/submit" method="POST">
+  <input type="hidden" name="_form_id" value="YOUR_FORM_ID" />
+  <input type="text" name="name" required />
+  <input type="email" name="email" required />
+  <textarea name="message" required></textarea>
+  <button type="submit">Send</button>
+</form>
+```
+
+## Why InputHaven?
+
+- **Most affordable**: 500 free submissions/mo, 2,500 for $5/mo (vs Formspree $25/mo for 1,000)
+- **AI spam filtering**: Claude-powered spam detection (Starter+)
+- **Works everywhere**: HTML, React, Vue, Svelte, Next.js, Astro, any frontend
+- **Visual form builder**: Drag-and-drop builder that generates HTML/React/Next.js code
+- **Conditional email routing**: Route submissions to different emails based on field values
+- **No vendor lock-in**: Standard HTML forms, export to CSV anytime
+
+## Pricing
+- Free: $0/mo, 500 submissions, 3 forms
+- Starter: $5/mo, 2,500 submissions, 25 forms, AI spam, email routing
+- Pro: $12/mo, 10,000 submissions, unlimited forms
+- Enterprise: $29/mo, 50,000 submissions, unlimited forms
+
+## Links
+- Website: https://inputhaven.com
+- Documentation: https://inputhaven.com/docs
+- Full AI reference: https://inputhaven.com/llms-full.txt
+- API Spec: https://inputhaven.com/openapi.yaml
+- Pricing: https://inputhaven.com/pricing
+- Dashboard: https://inputhaven.com/dashboard

@@ -1,0 +1,203 @@
+# InputHaven — Full Reference
+
+> The most affordable form backend service. Collect form submissions from any website, get email notifications, fight spam with AI, route emails conditionally, build forms visually, and manage everything from a dashboard.
+
+## What is InputHaven?
+
+InputHaven is a form backend as a service (FBaaS). You point your HTML form's action to our endpoint, and we handle submission storage, email notifications, spam filtering (including AI-powered detection), file uploads, webhooks, and more. No backend code required. Works with any frontend framework or static site.
+
+InputHaven is the most affordable alternative to Formspree, Getform, Basin, and Web3Forms. It offers 10x more free submissions than Formspree, includes API access on the free tier, and starts at $5/mo for 2,500 submissions — compared to $25/mo at Formspree for fewer submissions.
+
+## Pricing
+
+| Plan | Price | Submissions/mo | Forms | Key Features |
+|------|-------|----------------|-------|-------------|
+| Free | $0/mo | 500 | 3 | Email notifs, spam protection, API access |
+| Starter | $5/mo | 2,500 | 25 | + File uploads, webhooks, CSV export, AI spam filter, email routing |
+| Pro | $12/mo | 10,000 | Unlimited | + Remove branding, priority support, 365-day retention |
+| Enterprise | $29/mo | 50,000 | Unlimited | + Unlimited team members, forever data retention |
+
+Yearly billing saves 20%: Starter $48/yr, Pro $108/yr, Enterprise $276/yr.
+
+## API Endpoint
+
+POST https://inputhaven.com/api/v1/submit
+
+Accepts:
+- application/x-www-form-urlencoded
+- multipart/form-data
+- application/json
+
+Required: `_form_id` field in body or `X-Form-Id` header. Legacy `_access_key` and `X-Access-Key` also accepted.
+
+### Response (JSON)
+```json
+{ "success": true, "submissionId": "clxxxxxxxx" }
+```
+
+## Integration Examples
+
+### HTML Form
+```html
+<form action="https://inputhaven.com/api/v1/submit" method="POST">
+  <input type="hidden" name="_form_id" value="YOUR_FORM_ID" />
+  <input type="text" name="name" placeholder="Name" required />
+  <input type="email" name="email" placeholder="Email" required />
+  <textarea name="message" placeholder="Message" required></textarea>
+  <button type="submit">Send</button>
+</form>
+```
+
+### React
+```jsx
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  const res = await fetch("https://inputhaven.com/api/v1/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      _form_id: "YOUR_FORM_ID",
+      name: "John",
+      email: "john@example.com",
+      message: "Hello!",
+    }),
+  });
+  const data = await res.json();
+};
+```
+
+### Next.js (App Router)
+```tsx
+"use client";
+import { useState } from "react";
+
+export function ContactForm() {
+  const [status, setStatus] = useState("");
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const res = await fetch("https://inputhaven.com/api/v1/submit", {
+      method: "POST",
+      body: formData,
+    });
+    setStatus(res.ok ? "Sent!" : "Error");
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input type="hidden" name="_form_id" value="YOUR_FORM_ID" />
+      <input name="name" required />
+      <input name="email" type="email" required />
+      <textarea name="message" required />
+      <button type="submit">Send</button>
+      {status && <p>{status}</p>}
+    </form>
+  );
+}
+```
+
+### Vue.js
+```vue
+<template>
+  <form @submit.prevent="handleSubmit">
+    <input type="hidden" name="_form_id" :value="formId" />
+    <input v-model="name" name="name" required />
+    <input v-model="email" name="email" type="email" required />
+    <textarea v-model="message" name="message" required />
+    <button type="submit">Send</button>
+  </form>
+</template>
+
+<script setup>
+import { ref } from 'vue';
+const formId = 'YOUR_FORM_ID';
+const name = ref('');
+const email = ref('');
+const message = ref('');
+
+async function handleSubmit() {
+  await fetch('https://inputhaven.com/api/v1/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ _form_id: formId, name: name.value, email: email.value, message: message.value }),
+  });
+}
+</script>
+```
+
+### Svelte
+```svelte
+<script>
+  let name = '';
+  let email = '';
+  let message = '';
+
+  async function handleSubmit() {
+    await fetch('https://inputhaven.com/api/v1/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _form_id: 'YOUR_FORM_ID', name, email, message }),
+    });
+  }
+</script>
+
+<form on:submit|preventDefault={handleSubmit}>
+  <input bind:value={name} name="name" required />
+  <input bind:value={email} name="email" type="email" required />
+  <textarea bind:value={message} name="message" required />
+  <button type="submit">Send</button>
+</form>
+```
+
+## Special Fields
+
+| Field | Purpose |
+|-------|---------|
+| `_form_id` | (Required) Your form's unique ID |
+| `_redirect` | URL to redirect to after submission |
+| `_gotcha` | Honeypot field — should be hidden, bots fill it |
+
+## Features
+
+- Email notifications on every submission
+- Spam protection (honeypot, keyword filter, rate limiting, domain allowlist)
+- AI-powered spam filtering using Claude (Starter+ plans)
+- Conditional email routing based on field values (Starter+ plans)
+- Visual form builder with HTML/React/Next.js code generation
+- Webhook delivery with HMAC-SHA256 signatures
+- File uploads stored on Cloudflare R2 (Starter+)
+- CSV export of all submissions
+- API key management for programmatic access
+- Two-factor authentication (TOTP)
+- Dashboard with search, pagination, and filtering
+- Auto-response emails to form submitters
+- CORS domain allowlists per form
+- Custom email subjects
+
+## npm Packages
+
+- `@inputhaven/react` — React component for form submissions
+- `@inputhaven/js` — Vanilla JS client for API access
+
+## Comparison with Competitors
+
+| Feature | InputHaven | Formspree | Web3Forms | Basin | Getform |
+|---------|-----------|-----------|-----------|-------|---------|
+| Free submissions/mo | 500 | 50 | 250 | 100 | 50 |
+| Price for 2,500 subs | $5/mo | $25/mo | $8/mo | $18.56/mo | $16/mo |
+| API on free tier | Yes | No | Yes | No | No |
+| AI spam filtering | Yes | No | No | No | No |
+| Email routing rules | Yes | No | No | No | No |
+| Visual form builder | Yes | No | No | No | Yes |
+| File uploads from | $5/mo | $25/mo | $8/mo | $18.56/mo | $16/mo |
+| Webhook support | Yes | $25/mo+ | No | Yes | $16/mo+ |
+| Open API spec | Yes | No | No | No | No |
+
+## Links
+
+- Website: https://inputhaven.com
+- Docs: https://inputhaven.com/docs
+- API Spec: https://inputhaven.com/openapi.yaml
+- Pricing: https://inputhaven.com/pricing
+- LLM Quick Reference: https://inputhaven.com/llms.txt

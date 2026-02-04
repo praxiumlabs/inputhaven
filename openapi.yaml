@@ -1,0 +1,153 @@
+openapi: 3.1.0
+info:
+  title: InputHaven API
+  description: Form backend as a service. Collect form submissions, get email notifications, and manage forms.
+  version: 1.0.0
+  contact:
+    name: InputHaven
+    url: https://inputhaven.com
+servers:
+  - url: https://inputhaven.com
+    description: Production
+paths:
+  /api/v1/submit:
+    post:
+      summary: Submit a form
+      description: |
+        Accept form submissions. Supports JSON, form-encoded, and multipart form data.
+        The `_form_id` field is required in the body or as the `X-Form-Id` header.
+        Legacy field name `_access_key` and header `X-Access-Key` are also supported.
+      operationId: submitForm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - _form_id
+              properties:
+                _form_id:
+                  type: string
+                  description: Your form's unique ID
+                _redirect:
+                  type: string
+                  description: URL to redirect to after submission
+                _gotcha:
+                  type: string
+                  description: Honeypot field (should be hidden and empty)
+              additionalProperties:
+                type: string
+            example:
+              _form_id: "your-form-id"
+              name: "John Doe"
+              email: "john@example.com"
+              message: "Hello from my website!"
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - _form_id
+              properties:
+                _form_id:
+                  type: string
+              additionalProperties:
+                type: string
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - _form_id
+              properties:
+                _form_id:
+                  type: string
+              additionalProperties:
+                type: string
+      parameters:
+        - name: X-Form-Id
+          in: header
+          description: Alternative to _form_id in body
+          schema:
+            type: string
+        - name: X-Access-Key
+          in: header
+          description: Legacy alternative (use X-Form-Id instead)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Submission accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  submissionId:
+                    type: string
+        "303":
+          description: Redirect to success page or custom redirect URL
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Invalid form ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/download/{token}:
+    get:
+      summary: Download a file
+      description: Download a file upload using its download token.
+      operationId: downloadFile
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to signed download URL
+        "404":
+          description: File not found
+
+  /api/health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  timestamp:
+                    type: string
+                    format: date-time
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message

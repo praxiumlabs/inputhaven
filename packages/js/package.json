@@ -1,0 +1,19 @@
+{
+  "name": "@inputhaven/js",
+  "version": "1.0.0",
+  "description": "JavaScript client for InputHaven form backend",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch"
+  },
+  "keywords": ["form", "backend", "inputhaven", "form-handler", "contact-form"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inputhaven/inputhaven-js"
+  }
+}
