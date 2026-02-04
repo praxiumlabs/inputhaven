@@ -2,10 +2,14 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe";
+import { initLemonSqueezy } from "@/lib/lemonsqueezy";
 import { PLANS } from "@/lib/plans";
 import { Plan } from "@prisma/client";
 import { absoluteUrl } from "@/lib/utils";
+import {
+  createCheckout,
+  getSubscription,
+} from "@lemonsqueezy/lemonsqueezy.js";
 
 export async function createCheckoutSession(plan: Plan, yearly = false) {
   const session = await auth();
@@ -18,36 +22,29 @@ export async function createCheckoutSession(plan: Plan, yearly = false) {
   if (!user) return { error: "User not found" };
 
   const planConfig = PLANS[plan];
-  const priceId = yearly ? planConfig.stripeYearlyPriceId : planConfig.stripePriceId;
+  const variantId = yearly ? planConfig.yearlyVariantId : planConfig.variantId;
 
-  if (!priceId) return { error: "Invalid plan" };
+  if (!variantId) return { error: "Invalid plan" };
 
-  // Create or retrieve Stripe customer
-  let customerId = user.stripeCustomerId;
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: user.email,
-      name: user.name || undefined,
-      metadata: { userId: user.id },
-    });
-    customerId = customer.id;
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { stripeCustomerId: customerId },
-    });
-  }
+  initLemonSqueezy();
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    customer: customerId,
-    mode: "subscription",
-    payment_method_types: ["card"],
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: absoluteUrl("/dashboard/billing?success=true"),
-    cancel_url: absoluteUrl("/dashboard/billing?canceled=true"),
-    metadata: { userId: user.id, plan },
-  });
+  const { data, error } = await createCheckout(
+    process.env.LEMONSQUEEZY_STORE_ID!,
+    variantId,
+    {
+      checkoutData: {
+        email: user.email,
+        custom: { user_id: user.id },
+      },
+      productOptions: {
+        redirectUrl: absoluteUrl("/dashboard/billing?success=true"),
+      },
+    }
+  );
 
-  return { url: checkoutSession.url };
+  if (error || !data) return { error: "Failed to create checkout" };
+
+  return { url: data.data.attributes.url };
 }
 
 export async function createPortalSession() {
@@ -58,16 +55,24 @@ export async function createPortalSession() {
     where: { id: session.user.id },
   });
 
-  if (!user?.stripeCustomerId) {
+  if (!user?.lemonSqueezySubscriptionId) {
     return { error: "No billing account found" };
   }
 
-  const portalSession = await stripe.billingPortal.sessions.create({
-    customer: user.stripeCustomerId,
-    return_url: absoluteUrl("/dashboard/billing"),
-  });
+  initLemonSqueezy();
 
-  return { url: portalSession.url };
+  const { data, error } = await getSubscription(
+    user.lemonSqueezySubscriptionId
+  );
+
+  if (error || !data) return { error: "Subscription not found" };
+
+  const portalUrl =
+    data.data.attributes.urls.customer_portal;
+
+  if (!portalUrl) return { error: "Portal URL not available" };
+
+  return { url: portalUrl };
 }
 
 export async function getBillingInfo() {
@@ -78,19 +83,29 @@ export async function getBillingInfo() {
     where: { id: session.user.id },
     select: {
       plan: true,
-      stripeCustomerId: true,
-      stripeSubscriptionId: true,
+      lemonSqueezyCustomerId: true,
+      lemonSqueezySubscriptionId: true,
     },
   });
 
   if (!user) return null;
 
   let subscription = null;
-  if (user.stripeSubscriptionId) {
+  if (user.lemonSqueezySubscriptionId) {
     try {
-      subscription = await stripe.subscriptions.retrieve(
-        user.stripeSubscriptionId
+      initLemonSqueezy();
+      const { data } = await getSubscription(
+        user.lemonSqueezySubscriptionId
       );
+
+      if (data) {
+        const attrs = data.data.attributes;
+        subscription = {
+          status: attrs.status,
+          currentPeriodEnd: attrs.renews_at,
+          cancelAtPeriodEnd: attrs.cancelled,
+        };
+      }
     } catch {
       // Subscription may have been deleted
     }
@@ -113,14 +128,6 @@ export async function getBillingInfo() {
     plan: user.plan,
     planConfig: PLANS[user.plan],
     submissionCount,
-    subscription: subscription
-      ? {
-          status: subscription.status,
-          currentPeriodEnd: new Date(
-            (subscription as unknown as { current_period_end: number }).current_period_end * 1000
-          ).toISOString(),
-          cancelAtPeriodEnd: (subscription as unknown as { cancel_at_period_end: boolean }).cancel_at_period_end,
-        }
-      : null,
+    subscription,
   };
 }

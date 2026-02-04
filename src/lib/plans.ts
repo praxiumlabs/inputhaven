@@ -16,8 +16,8 @@ export interface PlanConfig {
   prioritySupport: boolean;
   dataRetentionDays: number;
   maxTeamMembers: number;
-  stripePriceId?: string;
-  stripeYearlyPriceId?: string;
+  variantId?: string;
+  yearlyVariantId?: string;
 }
 
 export const PLANS: Record<Plan, PlanConfig> = {
@@ -69,8 +69,8 @@ export const PLANS: Record<Plan, PlanConfig> = {
     prioritySupport: false,
     dataRetentionDays: 90,
     maxTeamMembers: 3,
-    stripePriceId: process.env.STRIPE_STARTER_PRICE_ID,
-    stripeYearlyPriceId: process.env.STRIPE_STARTER_YEARLY_PRICE_ID,
+    variantId: process.env.LEMONSQUEEZY_STARTER_VARIANT_ID,
+    yearlyVariantId: process.env.LEMONSQUEEZY_STARTER_YEARLY_VARIANT_ID,
   },
   PRO: {
     name: "Pro",
@@ -95,8 +95,8 @@ export const PLANS: Record<Plan, PlanConfig> = {
     prioritySupport: true,
     dataRetentionDays: 365,
     maxTeamMembers: 10,
-    stripePriceId: process.env.STRIPE_PRO_PRICE_ID,
-    stripeYearlyPriceId: process.env.STRIPE_PRO_YEARLY_PRICE_ID,
+    variantId: process.env.LEMONSQUEEZY_PRO_VARIANT_ID,
+    yearlyVariantId: process.env.LEMONSQUEEZY_PRO_YEARLY_VARIANT_ID,
   },
   ENTERPRISE: {
     name: "Enterprise",
@@ -120,10 +120,19 @@ export const PLANS: Record<Plan, PlanConfig> = {
     prioritySupport: true,
     dataRetentionDays: Infinity,
     maxTeamMembers: Infinity,
-    stripePriceId: process.env.STRIPE_ENTERPRISE_PRICE_ID,
-    stripeYearlyPriceId: process.env.STRIPE_ENTERPRISE_YEARLY_PRICE_ID,
+    variantId: process.env.LEMONSQUEEZY_ENTERPRISE_VARIANT_ID,
+    yearlyVariantId: process.env.LEMONSQUEEZY_ENTERPRISE_YEARLY_VARIANT_ID,
   },
 };
+
+export function getPlanFromVariantId(variantId: string): Plan {
+  for (const [plan, config] of Object.entries(PLANS)) {
+    if (config.variantId === variantId || config.yearlyVariantId === variantId) {
+      return plan as Plan;
+    }
+  }
+  return Plan.FREE;
+}
 
 export function getPlanConfig(plan: Plan): PlanConfig {
   return PLANS[plan];

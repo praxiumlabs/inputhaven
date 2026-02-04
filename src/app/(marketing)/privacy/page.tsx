@@ -47,7 +47,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-semibold text-foreground">5. Third-Party Services</h2>
           <p className="mt-2">
-            We use the following third-party services: Stripe (payments), Resend (email delivery),
+            We use the following third-party services: Lemon Squeezy (payments), Resend (email delivery),
             Upstash (rate limiting), Cloudflare (file storage), and Vercel (hosting).
           </p>
         </section>

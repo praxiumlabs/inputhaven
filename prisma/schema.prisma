@@ -29,8 +29,8 @@ model User {
   company               String?
   image                 String?
   plan                  Plan      @default(FREE)
-  stripeCustomerId      String?   @unique
-  stripeSubscriptionId  String?   @unique
+  lemonSqueezyCustomerId     String?   @unique
+  lemonSqueezySubscriptionId String?   @unique
   twoFactorEnabled      Boolean   @default(false)
   twoFactorSecret       String?
   lastLoginAt           DateTime?
