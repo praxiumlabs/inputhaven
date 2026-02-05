@@ -13,19 +13,12 @@ import { logger } from "@/lib/logger";
 import { getNextRetryAt } from "@/lib/email-retry";
 import { buildSubmissionEmailHtml } from "@/lib/email-template";
 import { redis } from "@/lib/redis";
+import { getClientIp } from "@/lib/utils";
 import crypto from "crypto";
 
 const MAX_JSON_SIZE = 64 * 1024; // 64KB
 const MAX_FIELDS = 100;
 const MAX_FIELD_VALUE_SIZE = 10 * 1024; // 10KB
-
-function getIp(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
 
 function corsHeaders(origin: string | null, allowedDomains: string[]) {
   const headers: Record<string, string> = {
@@ -63,7 +56,7 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const requestId = crypto.randomUUID();
-  const ip = getIp(request);
+  const ip = getClientIp(request);
   const origin = request.headers.get("origin");
 
   // Rate limit
@@ -205,45 +198,57 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Check submission limits — use Redis-cached monthly count with DB fallback
+  // Atomic submission limit check — use Redis INCR to reserve a slot atomically
   const now = new Date();
   const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const monthKey = `submissions:${form.userId}:${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  let reservedSlot = false;
 
-  let monthlyCount: number;
   try {
-    const cached = await redis.get<number>(monthKey);
-    if (cached !== null) {
-      monthlyCount = cached;
-    } else {
-      monthlyCount = await prisma.submission.count({
+    // Seed the counter from DB if it doesn't exist yet
+    const exists = await redis.exists(monthKey);
+    if (!exists) {
+      const dbCount = await prisma.submission.count({
         where: {
           form: { userId: form.userId },
           createdAt: { gte: startOfMonth },
           isSpam: false,
         },
       });
-      // Cache with TTL until end of month + 1 day buffer
       const endOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
       const ttlSeconds = Math.ceil((endOfMonth.getTime() - now.getTime()) / 1000) + 86400;
-      await redis.set(monthKey, monthlyCount, { ex: ttlSeconds });
+      // SET NX to avoid overwriting if another request seeded between our EXISTS and SET
+      await redis.set(monthKey, dbCount, { ex: ttlSeconds, nx: true });
+    }
+
+    // Atomically increment and check
+    const newCount = await redis.incr(monthKey);
+    reservedSlot = true;
+
+    if (!isWithinSubmissionLimit(form.user.plan as Plan, newCount - 1)) {
+      // Over limit — rollback the reservation
+      await redis.decr(monthKey);
+      reservedSlot = false;
+      return NextResponse.json(
+        { error: "Monthly submission limit reached" },
+        { status: 429, headers }
+      );
     }
   } catch {
-    // Redis unavailable, fall back to DB
-    monthlyCount = await prisma.submission.count({
+    // Redis unavailable, fall back to DB count (non-atomic but still functional)
+    const dbCount = await prisma.submission.count({
       where: {
         form: { userId: form.userId },
         createdAt: { gte: startOfMonth },
         isSpam: false,
       },
     });
-  }
-
-  if (!isWithinSubmissionLimit(form.user.plan as Plan, monthlyCount)) {
-    return NextResponse.json(
-      { error: "Monthly submission limit reached" },
-      { status: 429, headers }
-    );
+    if (!isWithinSubmissionLimit(form.user.plan as Plan, dbCount)) {
+      return NextResponse.json(
+        { error: "Monthly submission limit reached" },
+        { status: 429, headers }
+      );
+    }
   }
 
   // Clean data - remove internal fields
@@ -290,12 +295,12 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  // Increment cached monthly count
-  if (!spamResult.isSpam) {
+  // If marked as spam, rollback the reserved slot since spam doesn't count toward limits
+  if (spamResult.isSpam && reservedSlot) {
     try {
-      await redis.incr(monthKey);
+      await redis.decr(monthKey);
     } catch {
-      // Redis unavailable, cache will re-seed next request
+      // Redis unavailable, counter will re-seed from DB next request
     }
   }
 

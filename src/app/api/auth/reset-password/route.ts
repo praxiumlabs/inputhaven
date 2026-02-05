@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resetPassword } from "@/actions/auth";
 import { authRateLimit } from "@/lib/rate-limit";
+import { authFallback } from "@/lib/rate-limit-fallback";
+import { getClientIp } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const ip = getClientIp(request);
 
   try {
     const { success } = await authRateLimit.limit(ip);
@@ -17,7 +16,13 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch {
-    // If Redis is down, allow the request
+    const { success } = authFallback.limit(ip);
+    if (!success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
   }
 
   let body;

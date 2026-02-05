@@ -128,6 +128,63 @@ export const changePasswordSchema = z
     path: ["confirmPassword"],
   });
 
+/**
+ * Validate a webhook URL to prevent SSRF attacks.
+ * Blocks private/internal IP ranges and metadata endpoints.
+ */
+export function validateWebhookUrl(url: string): { valid: boolean; error?: string } {
+  try {
+    const parsed = new URL(url);
+
+    // Must be HTTPS in production
+    if (process.env.NODE_ENV === "production" && parsed.protocol !== "https:") {
+      return { valid: false, error: "Webhook URL must use HTTPS" };
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Block localhost variants
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "[::1]" ||
+      hostname === "0.0.0.0"
+    ) {
+      return { valid: false, error: "Webhook URL cannot target localhost" };
+    }
+
+    // Block private IP ranges and metadata endpoints
+    const privatePatterns = [
+      /^10\.\d+\.\d+\.\d+$/,                    // 10.0.0.0/8
+      /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/,    // 172.16.0.0/12
+      /^192\.168\.\d+\.\d+$/,                     // 192.168.0.0/16
+      /^169\.254\.\d+\.\d+$/,                     // Link-local / cloud metadata
+      /^100\.(6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\.\d+\.\d+$/, // CGN 100.64.0.0/10
+      /^0\.\d+\.\d+\.\d+$/,                       // 0.0.0.0/8
+    ];
+
+    for (const pattern of privatePatterns) {
+      if (pattern.test(hostname)) {
+        return { valid: false, error: "Webhook URL cannot target private/internal networks" };
+      }
+    }
+
+    // Block cloud metadata hostnames
+    const blockedHostnames = [
+      "metadata.google.internal",
+      "metadata.google",
+      "169.254.169.254",
+    ];
+    if (blockedHostnames.includes(hostname)) {
+      return { valid: false, error: "Webhook URL cannot target cloud metadata endpoints" };
+    }
+
+    return { valid: true };
+  } catch {
+    return { valid: false, error: "Invalid webhook URL" };
+  }
+}
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;

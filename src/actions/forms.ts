@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createFormSchema, updateFormSchema, builderConfigSchema } from "@/lib/validations";
+import { createFormSchema, updateFormSchema, builderConfigSchema, validateWebhookUrl } from "@/lib/validations";
 import { canCreateForm, getPlanConfig } from "@/lib/plans";
 import { generateWebhookSecret } from "@/lib/security";
 import { generateAccessKey } from "@/lib/utils";
@@ -107,6 +107,14 @@ export async function updateForm(
     ? validated.data.allowedDomains.split(",").map((d) => d.trim()).filter(Boolean)
     : [];
 
+  // Validate webhook URL against SSRF
+  if (validated.data.webhookUrl) {
+    const urlCheck = validateWebhookUrl(validated.data.webhookUrl);
+    if (!urlCheck.valid) {
+      return { error: urlCheck.error || "Invalid webhook URL" };
+    }
+  }
+
   // Generate webhook secret if webhook URL is being set for the first time
   let webhookSecret = form.webhookSecret;
   if (validated.data.webhookUrl && !form.webhookSecret) {
@@ -189,6 +197,7 @@ export async function getForms() {
 
   return prisma.form.findMany({
     where: { userId: session.user.id },
+    omit: { webhookSecret: true },
     include: {
       _count: { select: { submissions: true } },
     },
@@ -202,6 +211,7 @@ export async function getForm(formId: string) {
 
   return prisma.form.findFirst({
     where: { id: formId, userId: session.user.id },
+    omit: { webhookSecret: true },
     include: {
       _count: { select: { submissions: true } },
     },

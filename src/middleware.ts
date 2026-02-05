@@ -38,14 +38,8 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow static files
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    pathname.includes(".")
-  ) {
-    return NextResponse.next();
-  }
+  // Static files are already excluded by the matcher config below.
+  // No need for an additional dot-based check here (which could be exploited).
 
   const token = await getToken({
     req,

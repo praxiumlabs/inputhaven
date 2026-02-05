@@ -7,6 +7,10 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations";
 
+if (process.env.NODE_ENV === "production" && !process.env.AUTH_SECRET) {
+  throw new Error("AUTH_SECRET is required in production");
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   logger: {
     error(error) {
@@ -65,6 +69,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      // Block OAuth linking to existing credentials-only accounts with unverified email.
+      // This prevents account takeover where attacker creates OAuth account with victim's email.
+      if (account?.provider && account.provider !== "credentials" && user.email) {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email.toLowerCase() },
+          select: { password: true, emailVerified: true },
+        });
+        // If the user has a password (credentials account) and hasn't verified email, block linking
+        if (existingUser?.password && !existingUser.emailVerified) {
+          return false;
+        }
+      }
+      return true;
+    },
     async session({ session, token }) {
       if (token.sub && session.user) {
         session.user.id = token.sub;

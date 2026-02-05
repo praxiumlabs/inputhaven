@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { signWebhookPayload } from "@/lib/security";
+import { validateWebhookUrl } from "@/lib/validations";
 import { logger } from "@/lib/logger";
 
 interface WebhookPayload {
@@ -20,6 +21,13 @@ export async function deliverWebhook(
   webhookSecret: string | null,
   payload: WebhookPayload
 ) {
+  // SSRF protection: validate URL before making the request
+  const urlCheck = validateWebhookUrl(webhookUrl);
+  if (!urlCheck.valid) {
+    logger.warn("Webhook URL blocked by SSRF check", { formId, url: webhookUrl, error: urlCheck.error });
+    return { success: false, responseCode: null, error: urlCheck.error || "Blocked URL" };
+  }
+
   const body = JSON.stringify(payload);
   const reqHeaders: Record<string, string> = {
     "Content-Type": "application/json",

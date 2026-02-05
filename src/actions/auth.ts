@@ -48,7 +48,8 @@ export async function register(formData: {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       return { error: "Unable to create account. Please try again." };
     }
-    throw err;
+    console.error("[register] Unexpected error creating user:", err);
+    return { error: "Unable to create account. Please try again." };
   }
 
   // Create verification token

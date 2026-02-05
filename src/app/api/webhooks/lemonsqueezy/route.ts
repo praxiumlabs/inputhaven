@@ -10,10 +10,10 @@ function verifySignature(rawBody: string, signature: string): boolean {
     process.env.LEMONSQUEEZY_WEBHOOK_SECRET!
   );
   const digest = hmac.update(rawBody).digest("hex");
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(digest)
-  );
+  const sigBuf = Buffer.from(signature);
+  const digestBuf = Buffer.from(digest);
+  if (sigBuf.length !== digestBuf.length) return false;
+  return crypto.timingSafeEqual(sigBuf, digestBuf);
 }
 
 export async function POST(request: NextRequest) {

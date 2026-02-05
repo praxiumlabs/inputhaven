@@ -3,16 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { getSignedDownloadUrl } from "@/lib/r2";
 import { apiRateLimit } from "@/lib/rate-limit";
 import { apiFallback } from "@/lib/rate-limit-fallback";
+import { getClientIp } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const ip = getClientIp(request);
 
   try {
     const { success } = await apiRateLimit.limit(ip);

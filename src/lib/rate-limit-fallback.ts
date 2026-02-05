@@ -44,3 +44,4 @@ export class MemoryRateLimit {
 
 export const submissionFallback = new MemoryRateLimit(10, 60_000);
 export const apiFallback = new MemoryRateLimit(60, 60_000);
+export const authFallback = new MemoryRateLimit(5, 60_000);

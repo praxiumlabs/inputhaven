@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { NextRequest } from "next/server";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -29,4 +30,18 @@ export function truncate(str: string, length: number) {
 export function generateAccessKey() {
   const { randomBytes } = require("crypto") as typeof import("crypto");
   return randomBytes(16).toString("hex");
+}
+
+/**
+ * Extract the real client IP from request headers.
+ * Prefers x-vercel-forwarded-for (set by Vercel infra, not spoofable by clients),
+ * then x-real-ip, then x-forwarded-for as last resort.
+ */
+export function getClientIp(request: NextRequest): string {
+  return (
+    request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown"
+  );
 }

@@ -213,7 +213,7 @@ model FileUpload {
   fileSize      Int
   mimeType      String
   r2Key         String   @unique
-  downloadToken String   @unique @default(cuid())
+  downloadToken String   @unique
   createdAt     DateTime @default(now())
 
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)

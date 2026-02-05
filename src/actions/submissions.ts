@@ -96,9 +96,11 @@ export async function exportSubmissions(formId: string) {
 
   if (!form) return { error: "Form not found" };
 
+  const EXPORT_LIMIT = 10_000;
   const submissions = await prisma.submission.findMany({
     where: { formId, isSpam: false },
     orderBy: { createdAt: "desc" },
+    take: EXPORT_LIMIT,
   });
 
   // Build CSV
@@ -117,7 +119,11 @@ export async function exportSubmissions(formId: string) {
       if (header === "id") return sub.id;
       if (header === "createdAt") return sub.createdAt.toISOString();
       const val = data[header];
-      const str = String(val ?? "");
+      let str = String(val ?? "");
+      // CSV injection protection: prefix formula-triggering characters
+      if (/^[=+\-@]/.test(str)) {
+        str = "'" + str;
+      }
       // Escape CSV
       if (str.includes(",") || str.includes('"') || str.includes("\n")) {
         return `"${str.replace(/"/g, '""')}"`;
@@ -128,5 +134,9 @@ export async function exportSubmissions(formId: string) {
 
   const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
 
-  return { csv, filename: `${form.name}-submissions.csv` };
+  return {
+    csv,
+    filename: `${form.name}-submissions.csv`,
+    truncated: submissions.length === EXPORT_LIMIT,
+  };
 }

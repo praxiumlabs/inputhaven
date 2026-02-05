@@ -32,6 +32,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
+  // Verify submission belongs to a form owned by the authenticated user
+  if (submissionId) {
+    const submission = await prisma.submission.findFirst({
+      where: { id: submissionId, form: { userId: session.user.id } },
+      select: { id: true },
+    });
+    if (!submission) {
+      return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+    }
+  }
+
   const validation = validateFile(file.type, file.size);
   if (!validation.valid) {
     return NextResponse.json({ error: validation.error }, { status: 400 });
@@ -47,6 +58,8 @@ export async function POST(request: NextRequest) {
 
   await uploadFile(r2Key, buffer, file.type);
 
+  const downloadToken = crypto.randomBytes(32).toString("hex");
+
   const fileUpload = await prisma.fileUpload.create({
     data: {
       submissionId: submissionId || "",
@@ -54,6 +67,7 @@ export async function POST(request: NextRequest) {
       fileSize: file.size,
       mimeType: file.type,
       r2Key,
+      downloadToken,
     },
   });
 

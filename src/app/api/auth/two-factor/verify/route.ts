@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { authRateLimit } from "@/lib/rate-limit";
+import { authFallback } from "@/lib/rate-limit-fallback";
+import { getClientIp } from "@/lib/utils";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const ip = getClientIp(request);
 
   try {
     const { success } = await authRateLimit.limit(ip);
@@ -19,7 +18,13 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch {
-    // If Redis is down, allow the request
+    const { success } = authFallback.limit(ip);
+    if (!success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
   }
 
   const session = await auth();

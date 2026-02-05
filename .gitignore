@@ -44,4 +44,7 @@ next-env.d.ts
 .vercel
 .env*.local
 
-.vercel
+# temp debug files
+cookies.txt
+csrf_cookies.txt
+csrf_response.json

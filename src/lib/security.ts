@@ -1,7 +1,11 @@
 import crypto from "crypto";
 
 function getHmacSecret(): string {
-  return process.env.API_KEY_HMAC_SECRET || "";
+  const secret = process.env.API_KEY_HMAC_SECRET || "";
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error("API_KEY_HMAC_SECRET is required in production");
+  }
+  return secret;
 }
 
 export function generateApiKey(): { key: string; hash: string; prefix: string } {
