@@ -8,12 +8,11 @@ import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  debug: true,
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
-    error: "/api/auth/error",
+    error: "/login",
   },
   providers: [
     Google({
