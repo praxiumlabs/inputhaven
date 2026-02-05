@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +11,28 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
+const ERROR_MESSAGES: Record<string, string> = {
+  Configuration: "There was a problem with the server configuration. Please try again.",
+  OAuthAccountNotLinked: "This email is already associated with another sign-in method.",
+  OAuthCallbackError: "There was a problem signing in with the provider. Please try again.",
+  OAuthSignin: "Could not start the sign-in process. Please try again.",
+  Default: "An error occurred during sign in. Please try again.",
+};
+
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const urlError = searchParams.get("error");
+    if (urlError) {
+      setError(ERROR_MESSAGES[urlError] || ERROR_MESSAGES.Default);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
