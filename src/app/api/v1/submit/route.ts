@@ -59,6 +59,10 @@ export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
   const origin = request.headers.get("origin");
 
+  // Early CORS headers for all responses (before we know the form's allowedDomains)
+  const earlyCorsHeaders = corsHeaders(origin, []);
+  earlyCorsHeaders["X-Request-Id"] = requestId;
+
   // Rate limit
   try {
     const { success } = await submissionRateLimit.limit(ip);
@@ -66,7 +70,7 @@ export async function POST(request: NextRequest) {
       logger.warn("Rate limit exceeded", { requestId, ip });
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },
-        { status: 429, headers: { "X-Request-Id": requestId } }
+        { status: 429, headers: earlyCorsHeaders }
       );
     }
   } catch (err) {
@@ -78,7 +82,7 @@ export async function POST(request: NextRequest) {
     if (!success) {
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },
-        { status: 429, headers: { "X-Request-Id": requestId } }
+        { status: 429, headers: earlyCorsHeaders }
       );
     }
   }
@@ -93,7 +97,7 @@ export async function POST(request: NextRequest) {
       if (text.length > MAX_JSON_SIZE) {
         return NextResponse.json(
           { error: "Request body too large" },
-          { status: 413, headers: { "X-Request-Id": requestId } }
+          { status: 413, headers: earlyCorsHeaders }
         );
       }
       data = JSON.parse(text);
@@ -105,14 +109,14 @@ export async function POST(request: NextRequest) {
         if (++fieldCount > MAX_FIELDS) {
           return NextResponse.json(
             { error: "Too many form fields" },
-            { status: 413, headers: { "X-Request-Id": requestId } }
+            { status: 413, headers: earlyCorsHeaders }
           );
         }
         if (typeof value === "string") {
           if (value.length > MAX_FIELD_VALUE_SIZE) {
             return NextResponse.json(
               { error: `Field "${key}" value too large` },
-              { status: 413, headers: { "X-Request-Id": requestId } }
+              { status: 413, headers: earlyCorsHeaders }
             );
           }
           data[key] = value;
@@ -124,7 +128,7 @@ export async function POST(request: NextRequest) {
       if (text.length > MAX_JSON_SIZE) {
         return NextResponse.json(
           { error: "Request body too large" },
-          { status: 413, headers: { "X-Request-Id": requestId } }
+          { status: 413, headers: earlyCorsHeaders }
         );
       }
       const params = new URLSearchParams(text);
@@ -134,13 +138,13 @@ export async function POST(request: NextRequest) {
         if (++fieldCount > MAX_FIELDS) {
           return NextResponse.json(
             { error: "Too many form fields" },
-            { status: 413, headers: { "X-Request-Id": requestId } }
+            { status: 413, headers: earlyCorsHeaders }
           );
         }
         if (value.length > MAX_FIELD_VALUE_SIZE) {
           return NextResponse.json(
             { error: `Field "${key}" value too large` },
-            { status: 413, headers: { "X-Request-Id": requestId } }
+            { status: 413, headers: earlyCorsHeaders }
           );
         }
         data[key] = value;
@@ -149,7 +153,7 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json(
       { error: "Invalid request body" },
-      { status: 400, headers: { "X-Request-Id": requestId } }
+      { status: 400, headers: earlyCorsHeaders }
     );
   }
 
@@ -166,7 +170,7 @@ export async function POST(request: NextRequest) {
   if (!accessKey) {
     return NextResponse.json(
       { error: "Form ID is required. Add a hidden field named '_form_id' with your form's ID." },
-      { status: 400, headers: { "X-Request-Id": requestId } }
+      { status: 400, headers: earlyCorsHeaders }
     );
   }
 
@@ -179,7 +183,7 @@ export async function POST(request: NextRequest) {
   if (!form || !form.isActive) {
     return NextResponse.json(
       { error: "Invalid access key" },
-      { status: 404, headers: { "X-Request-Id": requestId } }
+      { status: 404, headers: earlyCorsHeaders }
     );
   }
 
