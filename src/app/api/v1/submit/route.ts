@@ -26,12 +26,12 @@ function corsHeaders(origin: string | null, allowedDomains: string[]) {
     "Access-Control-Allow-Headers": "Content-Type",
   };
 
+  // If no allowed domains configured, allow any origin (form is public)
   if (allowedDomains.length === 0) {
-    const appOrigin = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    if (!origin || origin === "null") {
-      headers["Access-Control-Allow-Origin"] = appOrigin;
-    } else if (origin === new URL(appOrigin).origin) {
+    if (origin) {
       headers["Access-Control-Allow-Origin"] = origin;
+    } else {
+      headers["Access-Control-Allow-Origin"] = "*";
     }
   } else if (origin) {
     try {
