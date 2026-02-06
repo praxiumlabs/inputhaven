@@ -18,7 +18,7 @@ const navItems = [
   { href: "/dashboard/forms", label: "Forms", icon: FileText },
   { href: "/dashboard/api-keys", label: "API Keys", icon: Key },
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings, exact: true },
   { href: "/dashboard/settings/security", label: "Security", icon: Shield },
 ];
 
@@ -34,7 +34,7 @@ export function Sidebar() {
         {navItems.map((item) => {
           const isActive =
             pathname === item.href ||
-            (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            (!item.exact && item.href !== "/dashboard" && pathname.startsWith(item.href + "/"));
           return (
             <Link
               key={item.href}
